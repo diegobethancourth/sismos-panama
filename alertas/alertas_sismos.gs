@@ -120,7 +120,7 @@ function obtenerEventos() {
   PropertiesService.getScriptProperties().setProperty('SP_LAST_SRC', estadoSrc.join(' · '));
   if (res[0].getResponseCode() !== 200 && codeE !== 200 && codeE !== 204) return null;
 
-  // une catálogos: el mismo sismo si difiere ≤60 s, ≤100 km y ≤1 de magnitud; prioridad USGS
+  // une catálogos: el mismo sismo si difiere ≤20 s, ≤60 km y ≤1 de magnitud; prioridad USGS
   var out = usgs.slice();
   emsc.forEach(function (x) {
     var hit = null;
@@ -173,7 +173,7 @@ function buscarVisto(vistos, e) {
   for (var i = 0; i < vistos.length; i++) if (vistos[i].id === e.id || mismoSismo(vistos[i], e)) return vistos[i];
   return null;
 }
-function mismoSismo(a, b) { return Math.abs(a.t - b.t) <= 60000 && Math.abs(a.mag - b.mag) <= 1 && distKm(a.lat, a.lon, b.lat, b.lon) <= 100; }
+function mismoSismo(a, b) { return Math.abs(a.t - b.t) <= 20000 && Math.abs(a.mag - b.mag) <= 1 && distKm(a.lat, a.lon, b.lat, b.lon) <= 60; }
 function mayor(evs) { return evs.reduce(function (a, e) { return !a || e.mag > a.mag ? e : a; }, null); }
 function distKm(la1, lo1, la2, lo2) {
   var r = Math.PI / 180, dLa = (la2 - la1) * r, dLo = (lo2 - lo1) * r;
