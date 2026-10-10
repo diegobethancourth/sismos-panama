@@ -128,6 +128,8 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .filters input{background:var(--chip);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:14px;min-width:150px;flex:1}
 .filters select{font-size:14px;padding:6px 8px}
 .srcb{display:inline-block;border-radius:5px;padding:0 6px;font-size:11px;font-weight:600}
+.tg{display:inline-block;border-radius:5px;padding:0 5px;font-size:10.5px;font-weight:700;letter-spacing:.3px;margin-left:4px;vertical-align:2px;line-height:16px}
+.tg-IGC{background:var(--g);color:var(--gi)}.tg-USGS{background:var(--b);color:var(--bi)}.tg-EMSC{background:var(--p);color:var(--pi)}
 .sb-u{background:var(--b);color:var(--bi)}.sb-e{background:var(--p);color:var(--pi)}.sb-ue{background:var(--g);color:var(--gi)}
 footer{max-width:1100px;margin:0 auto;padding:0 14px calc(var(--navh) + 20px);font-size:12px;color:var(--mut)}
 footer a{color:var(--acc)}
@@ -294,7 +296,7 @@ footer a{color:var(--acc)}
    Sismos Panamá — v1.2.0
    ===================================================================== */
 const CFG = {
-  version: '1.4.1', published: '2026-10-10T07:30:00Z',
+  version: '1.4.2', published: '2026-10-10T07:35:00Z',
   bbox: {minlatitude: 5, maxlatitude: 11, minlongitude: -84.5, maxlongitude: -76},
   fdsn: 'https://earthquake.usgs.gov/fdsnws/event/1/query',
   feedDay: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson',
@@ -488,7 +490,7 @@ function renderStatus() {
   }
   c.style.background = 'var(--' + L[1] + ')'; c.style.color = 'var(--' + L[1] + 'i)';
   c.innerHTML = '<span class="lvl"><svg class="i" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M2 12h3l2-5 3 11 3-14 3 12 2-4h4"/></svg>' + L[0] + '</span><h2>' + title + '</h2><p>' + text + '</p>' +
-    '<div class="last ev" data-k="' + last.key + '"><span class="mag" style="background:' + magCol(last.mag) + '">' + last.mag.toFixed(1) + '</span><div><b>Último: ' + ago(last.t) + '</b><br>' + lugar(last.place) + '</div></div>';
+    '<div class="last ev" data-k="' + last.key + '"><span class="mag" style="background:' + magCol(last.mag) + '">' + last.mag.toFixed(1) + '</span><div><b>Último: ' + ago(last.t) + '</b>' + srcTags(last) + '<br>' + lugar(last.place) + '</div></div>';
 }
 function renderProbs() {
   $('segWin').style.display = S.main && S.fit ? '' : 'none';
@@ -511,9 +513,11 @@ function fcHelp() {
     '<button class="btn pri full" id="goFc">Ver el análisis completo</button>');
   $('goFc').onclick = () => { closeSheet(); go('tech', 'fc'); };
 }
+// etiquetas de fuente: IGC (Universidad de Panamá), USGS, EMSC; si varias reportan el mismo sismo, aparecen todas
+const srcTags = e => ['IGC', 'USGS', 'EMSC'].filter(s => e.src.includes(s)).map(s => '<span class="tg tg-' + s + '" title="Reportado por ' + s + '">' + s + '</span>').join('');
 function evRow(e) {
   const r = S.city ? Math.round(mmiAt(e, S.city[1], S.city[2])) : null;
-  return '<div class="ev" data-k="' + e.key + '"><span class="mag" style="background:' + magCol(e.mag) + '">' + e.mag.toFixed(1) + '</span><div class="w"><div class="pl">' + lugar(e.place) + '</div><div class="mut">' + hora(e.t) + ' · ' + ago(e.t) + (S.city ? ' · en ' + S.city[0] + ': ' + WORD_MMI[r].toLowerCase() : '') + '</div></div></div>';
+  return '<div class="ev" data-k="' + e.key + '"><span class="mag" style="background:' + magCol(e.mag) + '">' + e.mag.toFixed(1) + '</span><div class="w"><div class="pl">' + lugar(e.place) + '</div><div class="mut">' + hora(e.t) + ' · ' + ago(e.t) + srcTags(e) + (S.city ? ' · en ' + S.city[0] + ': ' + WORD_MMI[r].toLowerCase() : '') + '</div></div></div>';
 }
 function renderList() { $('lastList').innerHTML = S.events.slice(-5).reverse().map(evRow).join('') || '<div class="mut">Sin sismos en la ventana.</div>'; }
 function rateBins() {
@@ -624,7 +628,7 @@ function renderMapList() {
 }
 function openEv(e) {
   const towns = [CITIES[0]].concat(S.city && S.city[0] !== CITIES[0][0] ? [S.city] : []);
-  sheet('<div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;padding-right:70px"><span class="mag" style="background:' + magCol(e.mag) + '">' + e.mag.toFixed(1) + '</span><div><div class="big">' + lugar(e.place) + '</div><div class="mut">' + fmtT(e.t) + ' · ' + ago(e.t) + ' · ' + Math.round(e.depth) + ' km de profundidad</div></div></div>' +
+  sheet('<div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;padding-right:70px"><span class="mag" style="background:' + magCol(e.mag) + '">' + e.mag.toFixed(1) + '</span><div><div class="big">' + lugar(e.place) + '</div><div class="mut">' + fmtT(e.t) + ' · ' + ago(e.t) + ' · ' + Math.round(e.depth) + ' km de profundidad</div><div style="margin-top:3px">' + srcTags(e).replace(/margin-left:4px/g, '') + (e.igc || e.emsc ? ' <span class="note">' + [e.hasUsgs ? 'USGS M' + e.mag.toFixed(1) : '', e.igc ? 'IGC M' + e.igc.mag.toFixed(1) : '', e.emsc ? 'EMSC M' + e.emsc.mag.toFixed(1) : ''].filter(Boolean).join(' · ') + '</span>' : '') + '</div></div></div>' +
     towns.map(([n, la, lo]) => { const r = Math.round(mmiAt(e, la, lo)); return '<div class="feel"><div class="mmi" style="background:' + MMI_COL[r] + '">' + ROMAN[r] + '</div><div><div class="mut">En ' + n + '</div><div class="big">' + WORD_MMI[r] + '</div></div></div>'; }).join('') +
     '<div style="margin-top:10px"><button class="btn sm" id="evMap">Ver en el mapa</button> <a class="btn sm" href="' + e.url + '" target="_blank" rel="noopener">Ficha en ' + (e.hasUsgs ? 'USGS' : 'EMSC') + '</a></div>');
   $('evMap').onclick = () => { closeSheet(); go('map'); setTimeout(() => map && map.setView([e.lat, e.lon], 9), 150); };
