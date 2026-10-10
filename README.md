@@ -1,6 +1,6 @@
 # Sismos Panamá
 
-PWA instalable para seguir sismos y réplicas en Panamá: qué esperar, cómo se siente en tu zona y qué hacer. Datos de USGS ComCat y EMSC (este último también en tiempo real).
+PWA instalable para seguir sismos y réplicas en Panamá: qué esperar, cómo se siente en tu zona y qué hacer. Datos del Instituto de Geociencias de la Universidad de Panamá (IGC, red nacional), USGS ComCat y EMSC (este último también en tiempo real). El listado del IGC llega a la app a través del servicio `push/worker.js`.
 
 **No es un sistema oficial de alerta.** Ante un sismo sigue a SINAPROC y al Instituto de Geociencias (IGC) de la Universidad de Panamá.
 

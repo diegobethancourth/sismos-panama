@@ -153,7 +153,7 @@ footer a{color:var(--acc)}
 
 <!-- ================= INICIO ================= -->
 <section class="view on" id="v-home">
-  <div class="card status" id="statusCard"><div class="mut">Cargando datos de USGS y EMSC…</div></div>
+  <div class="card status" id="statusCard"><div class="mut">Cargando datos…</div></div>
   <div class="cols">
     <div>
       <div class="card" id="cardExpect">
@@ -182,7 +182,7 @@ footer a{color:var(--acc)}
     </div>
   </div>
   <button class="btn pri full" id="btnShare"><svg class="i" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>Compartir resumen por WhatsApp</button>
-  <p class="note" style="text-align:center;margin-top:12px">Datos de USGS y EMSC. No es un sistema oficial de alerta: sigue a SINAPROC y al Instituto de Geociencias de la Universidad de Panamá.</p>
+  <p class="note" style="text-align:center;margin-top:12px">Datos del IGC (Universidad de Panamá), USGS y EMSC. No es un sistema oficial de alerta: sigue a SINAPROC y al Instituto de Geociencias de la Universidad de Panamá.</p>
 </section>
 
 <!-- ================= MAPA ================= -->
@@ -257,7 +257,7 @@ footer a{color:var(--acc)}
       <div class="filters">
         <input type="search" id="fText" placeholder="Buscar lugar…">
         <select class="c" id="fMag"><option value="0">Toda magnitud</option><option value="4">M≥4</option><option value="4.5">M≥4.5</option><option value="5">M≥5</option><option value="6">M≥6</option></select>
-        <select class="c" id="fSrc"><option value="all">Todas las fuentes</option><option value="usgs">USGS</option><option value="emsc">EMSC</option><option value="only">Solo EMSC</option></select>
+        <select class="c" id="fSrc"><option value="all">Todas las fuentes</option><option value="usgs">USGS</option><option value="igc">IGC</option><option value="emsc">EMSC</option><option value="only">Sin USGS</option></select>
         <select class="c" id="selDays" title="Ventana de datos"><option value="1">Último día</option><option value="3">3 días</option><option value="7" selected>7 días</option><option value="30">30 días</option><option value="90">90 días</option></select>
         <button class="btn sm" id="btnClear">Limpiar filtros</button>
         <button class="btn sm" id="btnXlsF">Excel (vista)</button>
@@ -271,7 +271,7 @@ footer a{color:var(--acc)}
 </section>
 </main>
 <footer>
-  Datos: <a href="https://earthquake.usgs.gov/fdsnws/event/1/" target="_blank" rel="noopener">USGS ComCat</a> (ShakeMap, "¿Lo sintió?" y pronóstico de réplicas cuando se publican) y <a href="https://www.seismicportal.eu/" target="_blank" rel="noopener">EMSC</a>. Mapa © OpenStreetMap. Horas de Panamá (UTC−5). <span id="appVer"></span>
+  Datos: <a href="https://sismosgeociencias.up.ac.pa/" target="_blank" rel="noopener">Instituto de Geociencias, Universidad de Panamá</a>, <a href="https://earthquake.usgs.gov/fdsnws/event/1/" target="_blank" rel="noopener">USGS ComCat</a> (ShakeMap, "¿Lo sintió?" y pronóstico de réplicas cuando se publican) y <a href="https://www.seismicportal.eu/" target="_blank" rel="noopener">EMSC</a>. Mapa © OpenStreetMap. Horas de Panamá (UTC−5). <span id="appVer"></span>
 </footer>
 
 <div class="scrim" id="scrim"></div>
@@ -288,13 +288,14 @@ footer a{color:var(--acc)}
    Sismos Panamá — v1.2.0
    ===================================================================== */
 const CFG = {
-  version: '1.2.0', published: '2026-10-10T06:30:00Z',
+  version: '1.3.0', published: '2026-10-10T06:45:00Z',
   bbox: {minlatitude: 5, maxlatitude: 11, minlongitude: -84.5, maxlongitude: -76},
   fdsn: 'https://earthquake.usgs.gov/fdsnws/event/1/query',
   feedDay: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson',
   emsc: 'https://www.seismicportal.eu/fdsnws/event/1/query',
   emscWS: 'wss://www.seismicportal.eu/standing_order/websocket',
-  pushApi: '',               // URL del Worker de notificaciones (push/LEEME.md); vacío = solo avisos con la app abierta
+  pushApi: '',               // URL del Worker (push/LEEME.md): alertas con la app cerrada y listado del IGC; vacío = sin ambas
+  igcPage: 'https://sismosgeociencias.up.ac.pa/',
   refreshSec: 60, mc: 4.5, mainMin: 6.0,
   generic: {a: -1.67, b: 0.91, p: 1.08, c: 0.05},                       // Reasenberg & Jones (1989)
   prior: {c: 0.018, p0: 1.0, sp: 0.1, b0: 1.0, nb: 50, tmin: 0.02},      // Page et al. (2016)
@@ -310,7 +311,7 @@ const EFFECT = ['', 'No se siente.', 'Casi nadie lo nota.', 'Se nota en pisos al
   'Cuesta mantenerse de pie; daños en construcciones débiles.', 'Daños considerables en construcciones comunes.', 'Daños graves incluso en estructuras bien construidas.', 'Destrucción generalizada.'];
 const MMI_COL = ['#ffffff', '#ffffff', '#bfccff', '#a0e6ff', '#80ffff', '#7aff93', '#ffff00', '#ffc800', '#ff9100', '#ff0000', '#c80000'];
 
-const S = {events: [], raw: {usgs: [], emsc: []}, emscLive: new Map(), src: {usgs: {}, emsc: {}}, main: null, seq: [], seqExtra: [], fit: null, T: 0,
+const S = {events: [], raw: {usgs: [], emsc: [], igc: []}, emscLive: new Map(), src: {usgs: {}, emsc: {}, igc: {}}, main: null, seq: [], seqExtra: [], fit: null, T: 0,
   days: 7, first: true, lastIds: new Set(), notified: [], generated: 0, pre: [], background: null, oaf: null, shake: null, dyfi: null,
   win: 1, hrs: 24, sub: 'seq', sortKey: 't', sortDir: -1, techDirty: true, mapSig: '', city: null, charts: {}};
 
@@ -363,17 +364,29 @@ function parseEmscProps(p, id) { const unid = p.unid || id; return {id: unid, ke
   lat: +p.lat, lon: +p.lon, depth: Math.max(0, Math.abs(+p.depth) || 10), place: titleCase(p.flynn_region || ''), url: 'https://www.seismicportal.eu/eventdetails.html?unid=' + unid, auth: p.auth || '', status: p.evtype === 'ke' ? 'reviewed' : 'automatic'}; }
 const parseEmsc = fc => (fc.features || []).map(f => parseEmscProps(f.properties, f.id)).filter(e => isFinite(e.mag) && isFinite(e.t));
 const inBox = e => { const b = CFG.bbox; return e.lat >= b.minlatitude && e.lat <= b.maxlatitude && e.lon >= b.minlongitude && e.lon <= b.maxlongitude; };
-// el mismo sismo en dos catálogos: ≤ 20 s, ≤ 60 km y ≤ 1 unidad de magnitud
-const sameQuake = (a, b) => Math.abs(a.t - b.t) <= 20000 && Math.abs(a.mag - b.mag) <= 1 && hav(a.lat, a.lon, b.lat, b.lon) <= 60;
-function merge(usgs, emsc) {
+// el mismo sismo en dos catálogos: ≤ 20 s (≤ 30 s si uno es del IGC), ≤ 60 km y ≤ 1 de magnitud
+function sameQuake(a, b) {
+  const d = hav(a.lat, a.lon, b.lat, b.lon), dt = Math.abs(a.t - b.t), dm = Math.abs(a.mag - b.mag), ia = /IGC/.test(a.src || ''), ib = /IGC/.test(b.src || '');
+  return dt <= (ia || ib ? 30000 : 20000) && dm <= 1 && d <= 60;
+}
+// IGC (Instituto de Geociencias, red nacional): llega ya normalizado desde el Worker
+const parseIgc = j => (j.events || []).map(e => Object.assign({}, e, {key: 'I:' + e.id, src: 'IGC', hasUsgs: false, magType: '', url: CFG.igcPage})).filter(e => isFinite(e.mag) && isFinite(e.t));
+function merge(usgs, emsc, igc) {
   const out = usgs.map(e => Object.assign({}, e)), used = new Set();
   for (const x of emsc) { const hit = out.find(e => !e.emsc && sameQuake(e, x)); if (hit) { hit.emsc = {mag: x.mag, magType: x.magType, auth: x.auth, url: x.url}; hit.emscId = x.id; hit.src = 'USGS+EMSC'; used.add(x.key); } }
-  for (const x of emsc) if (!used.has(x.key)) out.push(x);
+  for (const x of emsc) if (!used.has(x.key)) out.push(Object.assign({}, x));
+  for (const x of igc) {   // el IGC suele publicar primero y su ubicación ya viene en español con referencias locales
+    const hit = out.find(e => !e.igc && sameQuake(e, x));
+    if (hit) { hit.igc = {mag: x.mag, status: x.status}; hit.igcId = x.id; hit.src += '+IGC'; hit.place = x.place; } else out.push(Object.assign({}, x));
+  }
   return out.sort((a, b) => a.t - b.t);
 }
 async function load(manual) {
   const start = new Date(Date.now() - S.days * 864e5).toISOString().slice(0, 19);
-  const [ru, re] = await Promise.allSettled([fetchJSON(fdsnURL(Object.assign({starttime: start, minmagnitude: 2.5}, CFG.bbox))), fetchJSON(emscURL(start))]);
+  const [ru, re, ri] = await Promise.allSettled([fetchJSON(fdsnURL(Object.assign({starttime: start, minmagnitude: 2.5}, CFG.bbox))), fetchJSON(emscURL(start)),
+    CFG.pushApi ? fetchJSON(CFG.pushApi + '/igc', 15000) : Promise.reject(new Error('sin servicio'))]);
+  if (ri.status === 'fulfilled') { const t0 = Date.now() - S.days * 864e5; S.raw.igc = parseIgc(ri.value).filter(e => e.t >= t0 && inBox(e)); S.src.igc = {ok: true, at: ri.value.at || Date.now()}; }
+  else S.src.igc = Object.assign({}, S.src.igc, {ok: false});
   if (ru.status === 'fulfilled') { S.raw.usgs = parse(ru.value); S.src.usgs = {ok: true, at: Date.now(), mode: 'API'}; }
   else { try { const fc = await fetchJSON(CFG.feedDay); S.raw.usgs = parse(fc).filter(inBox); S.src.usgs = {ok: true, at: Date.now(), mode: 'feed 24 h'}; } catch (e) { S.src.usgs = Object.assign({}, S.src.usgs, {ok: false}); } }
   if (re.status === 'fulfilled') { S.raw.emsc = parseEmsc(re.value); S.src.emsc = Object.assign({}, S.src.emsc, {ok: true, at: Date.now()}); } else S.src.emsc = Object.assign({}, S.src.emsc, {ok: false});
@@ -385,8 +398,8 @@ async function load(manual) {
 }
 function rebuild(manual) {
   const emsc = S.raw.emsc.slice(); for (const x of S.emscLive.values()) { const i = emsc.findIndex(e => e.id === x.id); if (i >= 0) emsc[i] = x; else emsc.push(x); }
-  const evs = merge(S.raw.usgs, emsc.filter(inBox));
-  const fresh = S.first ? [] : evs.filter(e => !S.lastIds.has(e.key) && !(e.emscId && S.lastIds.has('E:' + e.emscId)));
+  const evs = merge(S.raw.usgs, emsc.filter(inBox), S.raw.igc);
+  const fresh = S.first ? [] : evs.filter(e => !S.lastIds.has(e.key) && !(e.emscId && S.lastIds.has('E:' + e.emscId)) && !(e.igcId && S.lastIds.has('I:' + e.igcId)));
   S.lastIds = new Set(evs.map(e => e.key)); S.events = evs;
   analyze(); renderAll();
   if (fresh.length) notifyNew(fresh);
@@ -445,7 +458,9 @@ function renderStamp() {
 function sourcesSheet() {
   const U = S.src.usgs, E = S.src.emsc, lastOf = f => S.events.filter(f).reduce((a, e) => Math.max(a, e.t), 0);
   const row = (n, s, extra, l) => '<div class="feel"><span class="dot' + (s.ok ? '' : ' ko') + '" style="margin-top:8px"></span><div><b>' + n + '</b> · ' + (s.at ? 'consultado ' + hora(s.at) : 'sin respuesta') + (extra ? ' · ' + extra : '') + (l ? '<br><span class="mut">Último sismo que reporta: ' + hora(l) + ' (' + ago(l) + ')</span>' : '') + '</div></div>';
-  sheet('<div class="big" style="margin-bottom:6px;padding-right:70px">Fuentes de datos</div>' + row('USGS', U, U.mode && U.mode !== 'API' ? U.mode : '', lastOf(e => e.hasUsgs)) + row('EMSC', E, E.ws ? 'en vivo' : '', lastOf(e => e.src !== 'USGS')) +
+  const I = S.src.igc;
+  sheet('<div class="big" style="margin-bottom:6px;padding-right:70px">Fuentes de datos</div>' + row('IGC · Universidad de Panamá (red nacional)', CFG.pushApi ? I : {ok: false}, CFG.pushApi ? (I.at ? 'listado de ' + hora(I.at) : '') : 'se activa con el servicio de alertas', lastOf(e => /IGC/.test(e.src))) +
+    row('USGS', U, U.mode && U.mode !== 'API' ? U.mode : '', lastOf(e => e.hasUsgs)) + row('EMSC', E, E.ws ? 'en vivo' : '', lastOf(e => /EMSC/.test(e.src))) +
     '<div class="note" style="margin-top:8px">Se actualiza solo cada minuto; EMSC además avisa al instante. App versión ' + CFG.version + ' (' + fmtT(Date.parse(CFG.published)) + ').</div>');
 }
 
@@ -680,13 +695,13 @@ function renderCities() {
   $('cityTable').innerHTML = '<thead><tr><th>Ciudad</th><th class="n">Km</th><th>' + (S.main ? 'Principal' : 'Sismo mayor') + '</th><th>Máxima</th><th class="n">Sismos ≥IV</th></tr></thead><tbody>' +
     rows.map(r => '<tr><td>' + r.n + '</td><td class="n">' + Math.round(r.d) + '</td><td>' + b(r.vm) + '</td><td>' + b(r.mx) + '</td><td class="n">' + r.nIV + '</td></tr>').join('') + '</tbody>';
 }
-const srcB = e => e.src === 'USGS+EMSC' ? '<span class="srcb sb-ue">USGS+EMSC</span>' : e.src === 'EMSC' ? '<span class="srcb sb-e">EMSC</span>' : '<span class="srcb sb-u">USGS</span>';
+const srcB = e => '<span class="srcb ' + (e.src.includes('+') ? 'sb-ue' : e.src === 'USGS' ? 'sb-u' : 'sb-e') + '">' + e.src + '</span>' + (e.igc && e.igc.status === 'automatic' || (e.src === 'IGC' && e.status === 'automatic') ? ' <span class="note">preliminar</span>' : '');
 const COLS = [['t', 'Hora (Panamá)', e => fmtT(e.t, {year: 'numeric'})], ['mag', 'Mag', e => '<span class="pc" style="background:' + magCol(e.mag) + ';color:#fff">' + e.mag.toFixed(1) + '</span>', 1], ['magType', 'Tipo', e => e.magType],
   ['place', 'Lugar', e => '<a href="' + e.url + '" target="_blank" rel="noopener" style="color:inherit">' + lugar(e.place) + '</a>'], ['depth', 'Prof. km', e => Math.round(e.depth), 1], ['dist', 'Dist. principal km', e => e.dist == null ? '—' : Math.round(e.dist), 1],
-  ['pty', 'MMI Cd. Panamá', e => '<span class="pc" style="background:' + MMI_COL[Math.round(e.pty)] + ';color:#111">' + ROMAN[Math.round(e.pty)] + '</span>', 1], ['src', 'Fuente', e => srcB(e) + (e.emsc ? ' <span class="note">EMSC M' + e.emsc.mag.toFixed(1) + '</span>' : '')]];
+  ['pty', 'MMI Cd. Panamá', e => '<span class="pc" style="background:' + MMI_COL[Math.round(e.pty)] + ';color:#111">' + ROMAN[Math.round(e.pty)] + '</span>', 1], ['src', 'Fuente', e => srcB(e) + (e.emsc ? ' <span class="note">EMSC M' + e.emsc.mag.toFixed(1) + '</span>' : '') + (e.igc ? ' <span class="note">IGC M' + e.igc.mag.toFixed(1) + '</span>' : '')]];
 const rowsAll = () => S.events.map(e => Object.assign({}, e, {dist: S.main ? hav(S.main.lat, S.main.lon, e.lat, e.lon) : null, pty: mmiAt(e, 8.983, -79.519)}));
 function rowsFiltered() { const q = $('fText').value.trim().toLowerCase(), mm = +$('fMag').value, fs = $('fSrc').value;
-  return rowsAll().filter(e => e.mag >= mm && (!q || lugar(e.place).toLowerCase().includes(q) || e.place.toLowerCase().includes(q)) && (fs === 'all' || (fs === 'usgs' ? e.hasUsgs : fs === 'emsc' ? !!(e.emsc || !e.hasUsgs) : !e.hasUsgs))); }
+  return rowsAll().filter(e => e.mag >= mm && (!q || lugar(e.place).toLowerCase().includes(q) || e.place.toLowerCase().includes(q)) && (fs === 'all' || (fs === 'usgs' ? e.hasUsgs : fs === 'emsc' ? /EMSC/.test(e.src) : fs === 'igc' ? /IGC/.test(e.src) : !e.hasUsgs))); }
 function renderEvTable() {
   const rows = rowsFiltered(), k = S.sortKey, d = S.sortDir; rows.sort((a, b) => (a[k] == null) - (b[k] == null) || (a[k] < b[k] ? -d : a[k] > b[k] ? d : 0));
   $('evTable').innerHTML = '<thead><tr>' + COLS.map(c => '<th data-k="' + c[0] + '" class="' + (c[3] ? 'n ' : '') + (k === c[0] ? 'sorted' : '') + '">' + c[1] + (k === c[0] ? (d > 0 ? ' ▲' : ' ▼') : ' ↕') + '</th>').join('') + '</tr></thead><tbody>' +
@@ -696,14 +711,14 @@ function renderEvTable() {
 function exportXlsx(all) {
   if (typeof XLSX === 'undefined') { toast('Excel no disponible sin conexión'); return; }
   const data = (all ? rowsAll() : rowsFiltered()).map(e => ({'Fecha y hora (Panamá)': fmtT(e.t, {year: 'numeric', second: '2-digit'}), UTC: new Date(e.t).toISOString(), Magnitud: e.mag, 'Tipo magnitud': e.magType, Lugar: lugar(e.place), Latitud: e.lat, Longitud: e.lon,
-    'Profundidad km': e.depth, 'Distancia al principal km': e.dist == null ? '' : Math.round(e.dist), 'MMI estimada Cd. Panamá': +e.pty.toFixed(1), Fuente: e.src, 'Mag EMSC': e.emsc ? e.emsc.mag : (e.hasUsgs ? '' : e.mag), Estado: e.status, ID: e.id, Enlace: e.url}));
+    'Profundidad km': e.depth, 'Distancia al principal km': e.dist == null ? '' : Math.round(e.dist), 'MMI estimada Cd. Panamá': +e.pty.toFixed(1), Fuente: e.src, 'Mag EMSC': e.emsc ? e.emsc.mag : (e.src === 'EMSC' ? e.mag : ''), 'Mag IGC': e.igc ? e.igc.mag : (e.src === 'IGC' ? e.mag : ''), Estado: e.status, ID: e.id, Enlace: e.url}));
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Eventos');
   if (S.fit) { const fc = []; for (const [l, d] of [['6 h', .25], ['24 h', 1], ['7 días', 7], ['30 días', 30]]) for (const M of [5, 6, 7]) fc.push({Ventana: l, Magnitud: 'M≥' + M, 'Nº esperado': +expSeq(S.T, S.T + d, M).toFixed(2), 'Probabilidad ≥1': +Pr(d, M).toFixed(3)}); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fc), 'Pronóstico'); }
   XLSX.writeFile(wb, 'sismos_panama_' + new Date().toISOString().slice(0, 10) + (all ? '_completo' : '_vista') + '.xlsx');
 }
 function renderMethod() {
   const f = S.fit, m = S.main, P = CFG.prior;
-  $('methodBox').innerHTML = `<p class="lead"><b>1. Datos.</b> USGS ComCat y EMSC, región 5–11°N y 76–84.5°O, M≥2.5, consulta cada ${CFG.refreshSec} s; EMSC también en tiempo real por WebSocket. Un evento de ambas fuentes es el mismo sismo si difiere ≤ 20 s, ≤ 60 km y ≤ 1 de magnitud. Los modelos usan solo USGS${S.modelCat === 'EMSC' ? ' (ahora EMSC: USGS no responde)' : ''} para no mezclar escalas de magnitud.</p>
+  $('methodBox').innerHTML = `<p class="lead"><b>1. Datos.</b> Tres fuentes, región 5–11°N y 76–84.5°O: el Instituto de Geociencias de la Universidad de Panamá (IGC, red nacional: el primero en publicar sismos de Panamá, con estado preliminar o revisado), USGS ComCat y EMSC (este también en tiempo real por WebSocket); consulta cada ${CFG.refreshSec} s. Dos reportes son el mismo sismo si difieren ≤ 20 s (≤ 30 s con el IGC), ≤ 60 km y ≤ 1 de magnitud. Las magnitudes del IGC pueden diferir unas décimas de las de USGS porque cada agencia usa su propia escala y estaciones. Los modelos usan solo USGS${S.modelCat === 'EMSC' ? ' (ahora EMSC: USGS no responde)' : ''} para no mezclar escalas de magnitud.</p>
 <p class="lead"><b>2. Secuencia.</b> El mayor evento M≥${CFG.mainMin} de la ventana; réplicas = eventos posteriores dentro de 1.5 veces la longitud de ruptura (Wells y Coppersmith 1994):</p><div class="math">log₁₀ L = −3.55 + 0.74·M${m ? `\nL = ${(10 ** (-3.55 + 0.74 * m.mag)).toFixed(0)} km → radio ${S.radius.toFixed(0)} km` : ''}</div>
 <p class="lead"><b>3. Decaimiento (Omori-Utsu).</b></p><div class="math">λ(t) = K / (t + c)^p     (t en días, M ≥ ${CFG.mc})
 c = ${P.c} d fijo; K y p por máxima verosimilitud (Ogata 1983) con prior p ~ Normal(${P.p0}, ${P.sp}),

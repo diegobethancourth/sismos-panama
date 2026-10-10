@@ -1,7 +1,7 @@
 /**
  * SISMOS PANAMÁ — servicio de notificaciones push (Cloudflare Worker, un solo archivo)
  * -------------------------------------------------------------------------------
- * - Cada minuto (Cron Trigger) consulta USGS y EMSC (región de Panamá).
+ * - Cada minuto (Cron Trigger) consulta USGS, EMSC y el Instituto de Geociencias (IGC-UP, la red nacional; el más rápido para Panamá).
  * - Si hay un sismo nuevo, envía Web Push a cada teléfono suscrito cuyo umbral se alcance.
  * - Los teléfonos se suscriben desde la app (botón "Activar alertas").
  *
@@ -14,13 +14,14 @@
  *   - Cron Trigger:  * * * * *
  *   - Variable opcional PUSH_BUDGET (envíos por minuto; 45 en plan gratuito, 5000 en plan de pago)
  *
- * Rutas:  GET /vapid   GET /latest?thr=5   GET /status   POST /subscribe   POST /unsubscribe
+ * Rutas:  GET /vapid   GET /latest?thr=5   GET /igc   GET /status   POST /subscribe   POST /unsubscribe
  */
 
 const APP_URL = 'https://diegobethancourth.github.io/sismos-panama/';
 const ORIGINS = ['https://diegobethancourth.github.io', 'http://localhost:8765', 'http://localhost:8766'];
 const BOX = {la0: 5, la1: 11, lo0: -84.5, lo1: -76};
 const MIN_MAG = 4.5;              // por debajo de esto no se avisa a nadie
+const IGC_URL = 'https://sismosgeociencias.up.ac.pa/';   // listado público del IGC (últimos 7 días)
 const PUSH_HOSTS = /(^|\.)(fcm\.googleapis\.com|push\.apple\.com|push\.services\.mozilla\.com|notify\.windows\.com|push\.api\.chromium\.org)$/;
 
 export default {
@@ -35,6 +36,11 @@ export default {
         const st = await state(env);
         const ev = (st.alerts || []).filter(a => a.mag >= thr && Date.now() - a.sentAt < 3 * 3600e3).sort((a, b) => b.sentAt - a.sentAt || b.mag - a.mag)[0] || null;
         return json({event: ev}, cors);
+      }
+      if (url.pathname === '/igc') {
+        // la app lee aquí el listado del IGC (su página no permite lectura directa desde otro sitio); se refresca cada minuto con el cron
+        const st = await state(env);
+        return json({at: st.igcAt || null, events: st.igc || []}, Object.assign({'cache-control': 'public, max-age=30'}, cors));
       }
       if (url.pathname === '/status') {
         const st = await state(env);
@@ -92,15 +98,16 @@ async function run(env) {
     dirty = true;
   }
   // estado: se guarda solo si cambió algo, o como latido cada ~30 min
-  if (dirty || !st.beat || Date.now() - st.beat > 30 * 60e3) { st.beat = Date.now(); await save(env, st); }
+  if (dirty || st.igcChanged || !st.beat || Date.now() - st.beat > 30 * 60e3) { delete st.igcChanged; st.beat = Date.now(); await save(env, st); }
 }
 
 async function fetchEvents(st) {
   const since = new Date(Date.now() - 30 * 60e3).toISOString().slice(0, 19);
   const q = `starttime=${since}&minlatitude=${BOX.la0}&maxlatitude=${BOX.la1}&minlongitude=${BOX.lo0}&maxlongitude=${BOX.lo1}&minmagnitude=2.5`;
-  const [ru, re] = await Promise.allSettled([
+  const [ru, re, ri] = await Promise.allSettled([
     fetch('https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&' + q, {cf: {cacheTtl: 0}}),
-    fetch('https://www.seismicportal.eu/fdsnws/event/1/query?format=json&' + q, {cf: {cacheTtl: 0}})]);
+    fetch('https://www.seismicportal.eu/fdsnws/event/1/query?format=json&' + q, {cf: {cacheTtl: 0}}),
+    fetch(IGC_URL, {cf: {cacheTtl: 0}, headers: {'User-Agent': 'sismos-panama (monitor ciudadano)'}})]);
   const usgs = [], emsc = [], src = [];
   if (ru.status === 'fulfilled' && ru.value.ok) {
     src.push('USGS ok');
@@ -113,10 +120,21 @@ async function fetchEvents(st) {
     (await re.value.json()).features.forEach(f => { const p = f.properties;
       emsc.push({id: p.unid, src: 'EMSC', t: Date.parse(p.time), mag: +p.mag, lat: +p.lat, lon: +p.lon, depth: Math.abs(+p.depth) || 10, place: titleCase(p.flynn_region || '')}); });
   } else src.push(codeE === 204 ? 'EMSC sin eventos' : 'EMSC error');
+  let igc = [];
+  if (ri.status === 'fulfilled' && ri.value.ok) {
+    try {
+      igc = parseIGC(await ri.value.text()); src.push('IGC ok');
+      // el listado completo (7 días) se guarda solo si cambió, para respetar el límite de escrituras de KV
+      const sig = igc.slice(0, 40).map(e => e.id + e.mag + e.status).join('|');
+      if (sig !== st.igcSig) { st.igc = igc; st.igcSig = sig; st.igcAt = Date.now(); st.igcChanged = true; }
+    } catch (e) { src.push('IGC sin formato'); }
+  } else src.push('IGC error');
   st.sources = src.join(' · ');
-  if (!usgs.length && src[0] !== 'USGS ok' && codeE !== 200 && codeE !== 204) return null;
+  if (!usgs.length && !igc.length && src[0] !== 'USGS ok' && codeE !== 200 && codeE !== 204) return null;
   const out = usgs.slice();
   for (const x of emsc) { const hit = out.find(e => same(e, x)); if (hit) { if (hit.src === 'USGS') hit.src = 'USGS+EMSC'; } else out.push(x); }
+  const since30 = Date.now() - 30 * 60e3;
+  for (const x of igc.filter(e => e.t >= since30)) { const hit = out.find(e => same(e, x)); if (hit) { hit.src += '+IGC'; hit.place = x.place; } else out.push(x); }
   return out.filter(e => isFinite(e.mag) && isFinite(e.t)).sort((a, b) => a.t - b.t);
 }
 
@@ -170,8 +188,35 @@ async function vapidJWT(keys, aud) {
 /* ================= utilidades ================= */
 async function state(env) { return (await env.SISMOS.get('state', 'json')) || {}; }
 async function save(env, st) { await env.SISMOS.put('state', JSON.stringify(st)); }
-function slim(e) { return {id: e.id, t: e.t, lat: Math.round(e.lat * 1000) / 1000, lon: Math.round(e.lon * 1000) / 1000, mag: e.mag}; }
-function same(a, b) { return Math.abs(a.t - b.t) <= 20000 && Math.abs(a.mag - b.mag) <= 1 && dist(a.lat, a.lon, b.lat, b.lon) <= 60; }
+function slim(e) { return {id: e.id, src: e.src, status: e.status, t: e.t, lat: Math.round(e.lat * 1000) / 1000, lon: Math.round(e.lon * 1000) / 1000, mag: e.mag}; }
+// mismo sismo en dos reportes: ≤20 s (≤30 s si uno es del IGC), ≤60 km y ≤1 de magnitud.
+// El IGC publica primero una versión PRELIMINAR y luego la REVISADA, que puede mover la hora 1–2 min: se aceptan ≤180 s y ≤0.5 de magnitud.
+function same(a, b) {
+  const d = dist(a.lat, a.lon, b.lat, b.lon), dt = Math.abs(a.t - b.t), dm = Math.abs(a.mag - b.mag);
+  const igcA = String(a.src || '').includes('IGC'), igcB = String(b.src || '').includes('IGC');
+  if (igcA && igcB && a.status !== b.status) return dt <= 180000 && dm <= 0.5 && d <= 60;
+  return dt <= (igcA || igcB ? 30000 : 20000) && dm <= 1 && d <= 60;
+}
+/* listado del IGC: cada fila trae un enlace "Ver" con todos los datos en la URL (ultimosismo.html?lt=..&ln=..&p=..&e=..&h=..&f=..&m=..&r=..) */
+function parseIGC(html) {
+  const out = [], seenQ = new Set(), re = /ultimosismo\.html\?([^"'<>\s]+)/g; let m;
+  while ((m = re.exec(html))) {
+    const qs = m[1].replace(/&amp;/g, '&'); if (seenQ.has(qs)) continue; seenQ.add(qs);
+    const q = new URLSearchParams(qs), lat = +q.get('lt'), lon = +q.get('ln'), mag = +q.get('m'), t = igcTime(q.get('f'), q.get('h'));
+    if (!isFinite(lat) || !isFinite(lon) || !isFinite(mag) || !isFinite(t)) continue;
+    const status = /REVISADO/i.test(q.get('e') || '') ? 'reviewed' : 'automatic';
+    out.push({id: 'IGC-' + q.get('f') + 'T' + q.get('h') + '-' + lat.toFixed(3), src: 'IGC', status, t, mag, lat, lon, depth: parseFloat(q.get('p')) || 10, place: igcPlace(q.get('r'))});
+  }
+  // si aparecen la versión preliminar y la revisada del mismo sismo, queda la revisada
+  const keep = out.filter(e => !(e.status === 'automatic' && out.some(x => x !== e && x.status === 'reviewed' && same(x, e))));
+  return keep.sort((a, b) => b.t - a.t);
+}
+function igcTime(f, h) {   // fecha y hora local de Panamá (UTC−5) con AM/PM
+  const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f || ''), c = /^(\d{1,2}):(\d{2}):(\d{2})\s*([AP]M)$/i.exec((h || '').trim()); if (!d || !c) return NaN;
+  let H = +c[1] % 12; if (/PM/i.test(c[4])) H += 12;
+  return Date.UTC(+d[1], +d[2] - 1, +d[3], H + 5, +c[2], +c[3]);
+}
+function igcPlace(r) { return String(r || '').trim().replace(/^Localizado en\s+/i, '').replace(/^Panamá a\s+/i, '').replace(/(\d+)\s*km/i, '$1 km'); }
 function dist(a, b, c, d) { const r = Math.PI / 180, x = Math.sin((c - a) * r / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin((d - b) * r / 2) ** 2; return 12742 * Math.asin(Math.sqrt(x)); }
 function titleCase(s) { return s.toLowerCase().replace(/(^|[\s,-])([a-z])/g, (m, a, b) => a + b.toUpperCase()); }
 function b64u(u8) { let s = ''; for (const c of u8) s += String.fromCharCode(c); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }

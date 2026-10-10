@@ -1,6 +1,6 @@
 # Alertas push al teléfono (sin la app abierta)
 
-`alertas_sismos.gs` es un script de Google Apps Script que revisa USGS y EMSC **cada minuto** y, si hay un sismo nuevo en la región de Panamá:
+`alertas_sismos.gs` es un script de Google Apps Script que revisa el IGC (Universidad de Panamá), USGS y EMSC **cada minuto** y, si hay un sismo nuevo en la región de Panamá:
 
 - **Push al teléfono** vía [ntfy](https://ntfy.sh) desde M≥4.5 — suena como cualquier notificación, con la app cerrada. Desde M≥6 llega con prioridad máxima.
 - **Sin correo**: no usa Gmail ni su cuota.
@@ -25,6 +25,6 @@ No avisa dos veces el mismo sismo aunque llegue por las dos fuentes; sí avisa s
 **Revertir:** ejecutar `desinstalar` o borrar el proyecto. No toca nada más de tu cuenta.
 
 ## Cuotas (cuenta Google gratuita)
-- Trigger de 1 min = 1 440 corridas/día; cada corrida hace 2 consultas en paralelo (~1–2 s) → ~25–50 min de los 90 min diarios de triggers.
+- Trigger de 1 min = 1 440 corridas/día; cada corrida hace 3 consultas en paralelo (~1–2 s) → ~25–50 min de los 90 min diarios de triggers.
 - ntfy.sh gratuito: hasta 250 mensajes/día por origen, de sobra para este uso.
 - El tema ntfy es privado por ser difícil de adivinar; quien lo conozca puede suscribirse (útil para familia).

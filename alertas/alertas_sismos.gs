@@ -1,7 +1,7 @@
 /**
  * ALERTAS SÍSMICAS PANAMÁ — notificación push (ntfy), sin correo
  * ------------------------------------------------------------------
- * Revisa USGS y EMSC cada minuto. Si hay un sismo nuevo en la región de Panamá
+ * Revisa USGS, EMSC y el Instituto de Geociencias (IGC-UP, red nacional) cada minuto. Si hay un sismo nuevo en la región de Panamá
  * sobre el umbral, envía una notificación push al teléfono vía ntfy
  * (app gratuita Android/iOS). No usa Gmail: no consume cuota de correo.
  *
@@ -96,7 +96,8 @@ function obtenerEventos() {
   var q = 'starttime=' + desde + '&minlatitude=' + b.la0 + '&maxlatitude=' + b.la1 + '&minlongitude=' + b.lo0 + '&maxlongitude=' + b.lo1 + '&minmagnitude=2.5';
   var reqs = [
     {url: 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&' + q, muteHttpExceptions: true},
-    {url: 'https://www.seismicportal.eu/fdsnws/event/1/query?format=json&' + q, muteHttpExceptions: true}
+    {url: 'https://www.seismicportal.eu/fdsnws/event/1/query?format=json&' + q, muteHttpExceptions: true},
+    {url: 'https://sismosgeociencias.up.ac.pa/', muteHttpExceptions: true}
   ];
   var res;
   try { res = UrlFetchApp.fetchAll(reqs); } catch (err) { return null; }
@@ -117,8 +118,13 @@ function obtenerEventos() {
                  place: p.flynn_region || '', url: 'https://www.seismicportal.eu/eventdetails.html?unid=' + p.unid, auth: p.auth || ''});
     });
   } else estadoSrc.push('EMSC ' + (codeE === 204 ? 'sin eventos' : codeE));  // EMSC responde 204 cuando no hay eventos
+  var igc = [];
+  if (res[2].getResponseCode() === 200) {
+    try { igc = parseIGC(res[2].getContentText()).filter(function (e) { return e.t > Date.now() - CFG_SISMOS.VENTANA_MIN * 60000; }); estadoSrc.push('IGC ok'); }
+    catch (err) { estadoSrc.push('IGC sin formato'); }
+  } else estadoSrc.push('IGC ' + res[2].getResponseCode());
   PropertiesService.getScriptProperties().setProperty('SP_LAST_SRC', estadoSrc.join(' · '));
-  if (res[0].getResponseCode() !== 200 && codeE !== 200 && codeE !== 204) return null;
+  if (res[0].getResponseCode() !== 200 && codeE !== 200 && codeE !== 204 && res[2].getResponseCode() !== 200) return null;
 
   // une catálogos: el mismo sismo si difiere ≤20 s, ≤60 km y ≤1 de magnitud; prioridad USGS
   var out = usgs.slice();
@@ -127,6 +133,11 @@ function obtenerEventos() {
     for (var i = 0; i < out.length; i++) if (mismoSismo(out[i], x)) { hit = out[i]; break; }
     if (hit) { if (hit.src === 'USGS') { hit.src = 'USGS+EMSC'; hit.emscMag = x.mag; } }
     else out.push(x);
+  });
+  igc.forEach(function (x) {   // el IGC suele publicar primero; su texto de ubicación ya está en español
+    var hit = null;
+    for (var i = 0; i < out.length; i++) if (mismoSismo(out[i], x)) { hit = out[i]; break; }
+    if (hit) { hit.src += '+IGC'; hit.place = x.place; } else out.push(x);
   });
   return out.filter(function (e) { return isFinite(e.mag) && isFinite(e.t); }).sort(function (a, b) { return a.t - b.t; });
 }
@@ -168,12 +179,36 @@ function guardarVistos(arr) {
   arr = arr.slice(-250);
   PropertiesService.getScriptProperties().setProperty('SP_SEEN', JSON.stringify(arr));
 }
-function resumen(e) { return {id: e.id, t: e.t, lat: Math.round(e.lat * 1000) / 1000, lon: Math.round(e.lon * 1000) / 1000, mag: e.mag}; }
+function resumen(e) { return {id: e.id, src: e.src, status: e.status, t: e.t, lat: Math.round(e.lat * 1000) / 1000, lon: Math.round(e.lon * 1000) / 1000, mag: e.mag}; }
 function buscarVisto(vistos, e) {
   for (var i = 0; i < vistos.length; i++) if (vistos[i].id === e.id || mismoSismo(vistos[i], e)) return vistos[i];
   return null;
 }
-function mismoSismo(a, b) { return Math.abs(a.t - b.t) <= 20000 && Math.abs(a.mag - b.mag) <= 1 && distKm(a.lat, a.lon, b.lat, b.lon) <= 60; }
+// mismo sismo: ≤20 s (≤30 s si uno es del IGC), ≤60 km, ≤1 de magnitud; versión preliminar vs revisada del IGC: ≤180 s y ≤0.5
+function mismoSismo(a, b) {
+  var d = distKm(a.lat, a.lon, b.lat, b.lon), dt = Math.abs(a.t - b.t), dm = Math.abs(a.mag - b.mag);
+  var ia = String(a.src || '').indexOf('IGC') >= 0, ib = String(b.src || '').indexOf('IGC') >= 0;
+  if (ia && ib && a.status !== b.status) return dt <= 180000 && dm <= 0.5 && d <= 60;
+  return dt <= (ia || ib ? 30000 : 20000) && dm <= 1 && d <= 60;
+}
+// listado del IGC: cada fila trae un enlace "Ver" con los datos en la URL (ultimosismo.html?lt=..&ln=..&p=..&e=..&h=..&f=..&m=..&r=..)
+function parseIGC(html) {
+  var re = /ultimosismo\.html\?([^"'<>\s]+)/g, m, out = [], vistos = {};
+  while ((m = re.exec(html))) {
+    var qs = m[1].replace(/&amp;/g, '&'); if (vistos[qs]) continue; vistos[qs] = 1;
+    var q = {}; qs.split('&').forEach(function (kv) { var i = kv.indexOf('='); if (i > 0) { try { q[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1).replace(/\+/g, ' ')); } catch (e) {} } });
+    var lat = +q.lt, lon = +q.ln, mag = +q.m, t = igcTime(q.f, q.h);
+    if (!isFinite(lat) || !isFinite(lon) || !isFinite(mag) || !isFinite(t)) continue;
+    out.push({src: 'IGC', id: 'IGC-' + q.f + 'T' + q.h + '-' + lat.toFixed(3), status: /REVISADO/i.test(q.e || '') ? 'reviewed' : 'automatic', t: t, mag: mag, magType: '', lat: lat, lon: lon,
+      depth: parseFloat(q.p) || 10, place: String(q.r || '').trim().replace(/^Localizado en\s+/i, '').replace(/^Panamá a\s+/i, '').replace(/(\d+)\s*km/i, '$1 km'), url: 'https://sismosgeociencias.up.ac.pa/'});
+  }
+  return out.filter(function (e) { return !(e.status === 'automatic' && out.some(function (x) { return x !== e && x.status === 'reviewed' && mismoSismo(x, e); })); });
+}
+function igcTime(f, h) {   // hora local de Panamá (UTC−5) con AM/PM
+  var d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f || ''), c = /^(\d{1,2}):(\d{2}):(\d{2})\s*([AP]M)$/i.exec(String(h || '').trim()); if (!d || !c) return NaN;
+  var H = (+c[1]) % 12; if (/PM/i.test(c[4])) H += 12;
+  return Date.UTC(+d[1], +d[2] - 1, +d[3], H + 5, +c[2], +c[3]);
+}
 function mayor(evs) { return evs.reduce(function (a, e) { return !a || e.mag > a.mag ? e : a; }, null); }
 function distKm(la1, lo1, la2, lo2) {
   var r = Math.PI / 180, dLa = (la2 - la1) * r, dLo = (lo2 - lo1) * r;

@@ -1,7 +1,7 @@
 # Notificaciones push dentro de la app (Cloudflare Worker)
 
 Con esto cualquier persona recibe alertas tocando **Activar alertas** en la app: sin instalar ntfy, sin cuentas.
-`worker.js` revisa USGS y EMSC cada minuto y envía Web Push a los teléfonos suscritos.
+`worker.js` revisa cada minuto el Instituto de Geociencias (IGC-UP, red nacional, el más rápido para Panamá), USGS y EMSC, y envía Web Push a los teléfonos suscritos. También entrega a la app el listado del IGC (ruta `/igc`), que su página no permite leer directamente desde otro sitio.
 
 - **Android (Chrome):** funciona con la app abierta, cerrada o instalada.
 - **iPhone (iOS 16.4 o más):** solo si la app está instalada en la pantalla de inicio (Compartir → Agregar a inicio). La app lo explica.
@@ -19,6 +19,8 @@ Con esto cualquier persona recibe alertas tocando **Activar alertas** en la app:
 Verificación: `…/status` muestra la última consulta, las fuentes y la última alerta enviada.
 
 ## Capacidad
+Cada persona con la app abierta consulta `/igc` una vez por minuto: el plan gratuito (100 000 consultas al día) alcanza para unas 60–70 personas mirando la app todo el día; el de pago, para millones.
+
 | Plan | Envíos por minuto | Costo |
 |---|---|---|
 | Gratuito | ~45 teléfonos por minuto (si hay más, sigue al minuto siguiente) | 0 |
