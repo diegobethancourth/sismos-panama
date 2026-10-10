@@ -14,7 +14,7 @@
  *   - Cron Trigger:  * * * * *
  *   - Variable opcional PUSH_BUDGET (envíos por minuto; 45 en plan gratuito, 5000 en plan de pago)
  *
- * Rutas:  GET /vapid   GET /latest?thr=5   GET /igc   GET /status   POST /subscribe   POST /unsubscribe
+ * Rutas:  GET /vapid   GET /latest?thr=5   GET /igc   GET /status   POST /subscribe   POST /unsubscribe   POST /test
  */
 
 const APP_URL = 'https://diegobethancourth.github.io/sismos-panama/';
@@ -44,7 +44,7 @@ export default {
       }
       if (url.pathname === '/status') {
         const st = await state(env);
-        return json({lastSaved: st.beat || null, igcChanged: st.igcAt || null, sources: st.sources || '', lastAlert: (st.alerts || [])[0] || null, pending: !!st.pending, live: LIVE}, Object.assign({'cache-control': 'no-store'}, cors));
+        return json({lastSaved: st.beat || null, igcChanged: st.igcAt || null, sources: st.sources || '', lastAlert: (st.alerts || [])[0] || null, pending: !!st.pending, lastBatch: st.lastBatch || null, live: LIVE}, Object.assign({'cache-control': 'no-store'}, cors));
       }
       if (url.pathname === '/subscribe' && req.method === 'POST') {
         const b = await req.json();
@@ -52,6 +52,18 @@ export default {
         if (!sub.endpoint || !PUSH_HOSTS.test(new URL(sub.endpoint).hostname)) return json({error: 'endpoint no válido'}, cors, 400);
         await env.SISMOS.put('s:' + await hashId(sub.endpoint), '1', {metadata: {e: sub.endpoint, t: thr}});
         return json({ok: true, thr}, cors);
+      }
+      if (url.pathname === '/test' && req.method === 'POST') {
+        // prueba de punta a punta para UN teléfono: ¿está registrado? ¿qué responde el servicio de push (Google/Apple/Mozilla)?
+        const b = await req.json();
+        if (!b.endpoint || !PUSH_HOSTS.test(new URL(b.endpoint).hostname)) return json({error: 'endpoint no válido'}, cors, 400);
+        const k = await env.SISMOS.getWithMetadata('s:' + await hashId(b.endpoint));
+        if (!k || !k.metadata) return json({registered: false}, cors);
+        const keys = await vapidKeys(env);
+        const r = await pushTo(b.endpoint, keys, await vapidJWT(keys, new URL(b.endpoint).origin));
+        let detail = ''; try { detail = (await r.text()).slice(0, 200); } catch (e) {}
+        if (r.status === 404 || r.status === 410) await env.SISMOS.delete('s:' + await hashId(b.endpoint));
+        return json({registered: true, thr: k.metadata.t, status: r.status, detail}, cors);
       }
       if (url.pathname === '/unsubscribe' && req.method === 'POST') {
         const b = await req.json();
@@ -145,6 +157,9 @@ async function fetchEvents(st) {
 /* ================= envío de Web Push ================= */
 async function sendBatch(env, st, budget) {
   const P = st.pending; let sent = 0; const jwts = {};
+  // resumen del envío (se ve en /status): cuántos teléfonos y qué respondió el servicio de push
+  if (!P.cursor && !P.skip) st.lastBatch = {at: Date.now(), mag: P.mag, codes: {}};
+  const B = st.lastBatch || (st.lastBatch = {at: Date.now(), mag: P.mag, codes: {}});
   const keys = await vapidKeys(env);
   let cursor = P.cursor || undefined;
   do {
@@ -157,15 +172,21 @@ async function sendBatch(env, st, budget) {
       const k = subs[i]; const ep = k.metadata.e; const aud = new URL(ep).origin;
       if (!jwts[aud]) jwts[aud] = await vapidJWT(keys, aud);
       try {
-        const r = await fetch(ep, {method: 'POST', headers: {TTL: '3600', Urgency: P.urgent ? 'high' : 'normal', Authorization: `vapid t=${jwts[aud]}, k=${keys.pub}`, 'Content-Length': '0'}});
+        const r = await pushTo(ep, keys, jwts[aud]);
+        B.codes[r.status] = (B.codes[r.status] || 0) + 1;
         if (r.status === 404 || r.status === 410) await env.SISMOS.delete(k.name);   // suscripción vencida
-      } catch (e) { /* se reintenta en el próximo sismo */ }
+      } catch (e) { B.codes.err = (B.codes.err || 0) + 1; }
       sent++;
     }
     P.skip = 0;
     cursor = page.list_complete ? null : page.cursor;
   } while (cursor);
   st.pending = null;
+}
+
+function pushTo(ep, keys, jwt) {
+  // siempre urgencia alta: con "normal" Android (modo reposo/Doze) puede retener el aviso por muchos minutos u horas
+  return fetch(ep, {method: 'POST', headers: {TTL: '3600', Urgency: 'high', Authorization: `vapid t=${jwt}, k=${keys.pub}`, 'Content-Length': '0'}});
 }
 
 /* ================= VAPID (ES256) ================= */

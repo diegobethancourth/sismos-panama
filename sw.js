@@ -1,5 +1,5 @@
 /* Service worker — Sismos Panamá v1.2.0 */
-const VER = 'sismos-pa-v13';
+const VER = 'sismos-pa-v14';
 const SHELL = ['./', 'index.html', 'manifest.json', 'favicon.ico', 'icons/icon-192.png', 'icons/icon-512.png', 'data/snapshot.json',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
@@ -26,7 +26,10 @@ self.addEventListener('fetch', e => {
 /* estado mínimo: umbral, URL del servidor de alertas y sismos ya notificados */
 async function getState() { try { const r = await (await caches.open(STATE)).match('state'); const s = r ? await r.json() : {}; s.seen = (s.seen || []).filter(x => typeof x === 'object'); if (s.thr == null) s.thr = 5; return s; } catch (e) { return {thr: 5, seen: []}; } }
 async function setState(s) { await (await caches.open(STATE)).put('state', new Response(JSON.stringify(s), {headers: {'content-type': 'application/json'}})); }
-self.addEventListener('message', e => { const d = e.data || {}; if (d.type === 'cfg') e.waitUntil(getState().then(s => { s.thr = +d.thr; s.api = d.api || ''; return setState(s); })); });
+self.addEventListener('message', e => { const d = e.data || {};
+  if (d.type === 'cfg') e.waitUntil(getState().then(s => { s.thr = +d.thr; s.api = d.api || ''; return setState(s); }));
+  if (d.type === 'test') e.waitUntil(getState().then(s => { s.testUntil = Date.now() + 3 * 60e3; return setState(s); }));   // el próximo push es la prueba del servidor
+});
 
 const hora = t => new Date(t).toLocaleTimeString('es-PA', {timeZone: 'America/Panama', hour: '2-digit', minute: '2-digit', hour12: false});
 const lugar = s => String(s || '').replace(/(\d+) km (\w+) of /, (m, k, d) => k + ' km al ' + d.replace(/W/g, 'O') + ' de ').replace(/, Panama$/, '').replace(/\bPanama\b/g, 'Panamá');
@@ -41,6 +44,11 @@ async function show(e, s) {
 self.addEventListener('push', e => {
   e.waitUntil((async () => {
     const s = await getState();
+    if (s.testUntil && s.testUntil > Date.now()) {
+      delete s.testUntil; await setState(s);
+      await self.registration.showNotification('Prueba recibida ✓', {body: 'Las alertas del servidor llegan a este teléfono, también con la app cerrada.', icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: 'prueba', renotify: true, vibrate: [200, 100, 200]});
+      return;
+    }
     let ev = null;
     try { if (e.data) ev = e.data.json().event; } catch (err) {}
     if (!ev && s.api) { try { ev = (await (await fetch(s.api + '/latest?thr=' + (s.thr || 5), {cache: 'no-store'})).json()).event; } catch (err) {} }

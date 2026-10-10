@@ -308,7 +308,7 @@ footer a{color:var(--acc)}
    Sismos Panamá — v1.2.0
    ===================================================================== */
 const CFG = {
-  version: '1.5.2', published: '2026-10-10T08:05:00Z',
+  version: '1.5.3', published: '2026-10-10T14:15:00Z',
   bbox: {minlatitude: 5, maxlatitude: 11, minlongitude: -84.5, maxlongitude: -76},
   fdsn: 'https://earthquake.usgs.gov/fdsnws/event/1/query',
   feedDay: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson',
@@ -790,32 +790,61 @@ function updAlertBtn() { $('btnAlert').classList.toggle('active', store('sp_aler
 function alertSheet() {
   if (isIOS && !standalone()) { sheet('<div class="big" style="font-size:19px;margin-bottom:6px;padding-right:70px">Primero instala la app</div><div>En iPhone las alertas solo funcionan con la app instalada: en Safari toca <b>Compartir</b> y luego <b>Agregar a inicio</b>. Ábrela desde el ícono y vuelve a tocar la campana.</div>'); return; }
   if (!('Notification' in window) || !('serviceWorker' in navigator)) { sheet('<div class="big" style="padding-right:70px">Este navegador no permite notificaciones.</div><div class="mut">Prueba con Chrome en Android o con la app instalada en iPhone.</div>'); return; }
-  const on = store('sp_alert') === '1' && Notification.permission === 'granted', t = thr();
+  const on = store('sp_alert') === '1' && Notification.permission === 'granted', t = thr(), srv = on && store('sp_push') === '1';
   const opt = (v, a, b) => '<label class="opt"><input type="radio" name="thr" value="' + v + '"' + (t === v ? ' checked' : '') + '><div><b>' + a + '</b><div class="mut">' + b + '</div></div></label>';
-  sheet('<div class="big" style="font-size:19px;margin-bottom:4px;padding-right:70px">' + (on ? 'Alertas activas' : 'Recibir alertas en este teléfono') + '</div><div class="mut" style="margin-bottom:10px">' + (CFG.pushApi ? 'Te avisamos aunque la app esté cerrada.' : 'Por ahora te avisamos mientras la app está abierta.') + ' ¿Desde qué tamaño?</div>' +
+  sheet('<div class="big" style="font-size:19px;margin-bottom:4px;padding-right:70px">' + (on ? 'Alertas activas' : 'Recibir alertas en este teléfono') + '</div><div class="mut" style="margin-bottom:10px">' + (!on ? (CFG.pushApi ? 'Te avisamos aunque la app esté cerrada.' : 'Por ahora te avisamos mientras la app está abierta.') : srv ? '<span style="color:var(--gi)">●</span> Registrado en el servidor: te avisamos aunque la app esté cerrada.' : '<span style="color:var(--ri)">●</span> Sin registro en el servidor: solo te avisamos con la app abierta. Toca <b>Guardar</b> para reintentar.') + ' ¿Desde qué tamaño?</div>' +
     opt(6, 'Solo sismos fuertes (M6 o más)', 'Pocos avisos; se sienten fuerte en buena parte del país.') + opt(5, 'Moderados o más (M5 o más)', 'Recomendado durante una secuencia de réplicas.') + opt(4.5, 'Todos los que se sienten (M4.5 o más)', 'Puede ser varias veces al día después de un sismo fuerte.') +
-    '<button class="btn pri full" id="alertOk" style="margin-top:6px">' + (on ? 'Guardar' : 'Activar alertas') + '</button>' + (on ? '<button class="btn full" id="alertTest" style="margin-top:8px">Enviar notificación de prueba</button><button class="btn full" id="alertOff" style="margin-top:8px">Desactivar alertas</button>' : ''));
+    '<button class="btn pri full" id="alertOk" style="margin-top:6px">' + (on ? 'Guardar' : 'Activar alertas') + '</button>' + (on ? (CFG.pushApi ? '<button class="btn full" id="alertSrv" style="margin-top:8px">Probar alerta desde el servidor</button>' : '') + '<button class="btn full" id="alertTest" style="margin-top:8px">Probar solo en este teléfono</button><button class="btn full" id="alertOff" style="margin-top:8px">Desactivar alertas</button>' : ''));
   $('alertOk').onclick = () => enableAlerts(+document.querySelector('input[name=thr]:checked').value);
-  if (on) { $('alertOff').onclick = disableAlerts; $('alertTest').onclick = testAlert; }
+  if (on) { $('alertOff').onclick = disableAlerts; $('alertTest').onclick = testAlert; if ($('alertSrv')) $('alertSrv').onclick = () => serverTest(false); }
 }
 async function enableAlerts(t) {
   const perm = await Notification.requestPermission(); if (perm !== 'granted') { toast('Sin permiso de notificaciones: actívalo en la configuración del navegador.', 5000); return; }
   store('sp_thr', String(t)); store('sp_alert', '1');
   const reg = await navigator.serviceWorker.ready;
-  if (CFG.pushApi && 'PushManager' in window) {
-    try {
-      const {key} = await fetchJSON(CFG.pushApi + '/vapid'), appKey = b64uToU8(key);
-      let sub = await reg.pushManager.getSubscription();
-      if (sub && sub.options && sub.options.applicationServerKey && new Uint8Array(sub.options.applicationServerKey).join() !== appKey.join()) { await sub.unsubscribe(); sub = null; }
-      if (!sub) sub = await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: appKey});
-      const r = await fetch(CFG.pushApi + '/subscribe', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({sub: sub.toJSON(), thr: t})});
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      store('sp_push', '1');
-    } catch (e) { store('sp_push', '0'); toast('No se pudo registrar en el servidor de alertas; te avisaremos con la app abierta.', 6000); }
-  }
+  if (CFG.pushApi && 'PushManager' in window && !(await pushRegister(reg, t, false))) toast('No se pudo registrar en el servidor de alertas; te avisaremos con la app abierta.', 6000);
   reg.active && reg.active.postMessage({type: 'cfg', thr: t, api: CFG.pushApi});
   try { if ('periodicSync' in reg) await reg.periodicSync.register('sismos', {minInterval: 15 * 60 * 1000}); } catch (e) {}
   closeSheet(); updAlertBtn(); toast('Alertas activas desde M' + t + (store('sp_push') === '1' ? ', también con la app cerrada.' : ' mientras la app está abierta.'), 5000);
+}
+// registra (o renueva) la suscripción de este teléfono en el servidor; fresh = descartar la suscripción del navegador y crear otra
+async function pushRegister(reg, t, fresh) {
+  try {
+    const {key} = await fetchJSON(CFG.pushApi + '/vapid'), appKey = b64uToU8(key);
+    let sub = await reg.pushManager.getSubscription();
+    if (sub && (fresh || (sub.options && sub.options.applicationServerKey && new Uint8Array(sub.options.applicationServerKey).join() !== appKey.join()))) {
+      fetch(CFG.pushApi + '/unsubscribe', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({endpoint: sub.endpoint})}).catch(() => {});
+      await sub.unsubscribe(); sub = null;
+    }
+    if (!sub) sub = await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: appKey});
+    const r = await fetch(CFG.pushApi + '/subscribe', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({sub: sub.toJSON(), thr: t})});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    store('sp_push', '1'); store('sp_push_at', String(Date.now())); return sub;
+  } catch (e) { store('sp_push', '0'); return null; }
+}
+// prueba de punta a punta: el servidor manda un push real a este teléfono y dice qué respondió Google/Apple/Mozilla
+async function serverTest(retry) {
+  const btn = $('alertSrv'); if (btn) { btn.disabled = true; btn.textContent = 'Probando…'; }
+  const done = (html) => sheet('<div class="big" style="font-size:19px;margin-bottom:6px;padding-right:70px">Prueba del servidor</div>' + html);
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await pushRegister(reg, thr(), false);
+    if (!sub) { done('<div>No se pudo registrar este teléfono en el servidor. Revisa la conexión e inténtalo de nuevo.</div>'); return; }
+    (reg.active || navigator.serviceWorker.controller).postMessage({type: 'test'});
+    await new Promise(r => setTimeout(r, 300));
+    const r = await (await fetch(CFG.pushApi + '/test', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({endpoint: sub.endpoint})})).json();
+    // no registrado o suscripción vencida/rechazada: se renueva una vez y se repite
+    if (!retry && (!r.registered || r.status === 404 || r.status === 410 || r.status === 400 || r.status === 401 || r.status === 403)) { await pushRegister(reg, thr(), !!r.registered); return serverTest(true); }
+    if (!r.registered) { done('<div>Este teléfono no quedó registrado en el servidor. Toca la campana → Guardar, e inténtalo de nuevo.</div>'); return; }
+    if (r.status >= 200 && r.status < 300) {
+      done('<div style="margin-bottom:8px"><span style="color:var(--gi)">●</span> El servidor envió la alerta y Google la aceptó (código ' + r.status + '). Debe aparecer <b>«Prueba recibida ✓»</b> en unos segundos.</div>' +
+        '<div class="mut">Si no aparece, el bloqueo está en el teléfono:</div><ol class="mut" style="margin:6px 0 0 18px;padding:0;line-height:1.5">' +
+        '<li>Ajustes → Aplicaciones → <b>Chrome</b> (o Sismos PA) → Notificaciones: activadas, y la categoría del sitio <b>diegobethancourth.github.io</b> en «Alertar/Sonido».</li>' +
+        '<li>Ajustes → Aplicaciones → Chrome → <b>Batería</b>: «Sin restricciones» (en Samsung, quítala de «Aplicaciones en suspensión»).</li>' +
+        '<li>En Chrome: ⋮ → Configuración → Notificaciones: permitidas para este sitio.</li></ol>');
+    } else done('<div><span style="color:var(--ri)">●</span> El servicio de push rechazó el envío (código ' + r.status + '). ' + (r.detail ? '<span class="mut">' + String(r.detail).replace(/[<>&]/g, '') + '</span>' : '') + '<br>Desactiva y vuelve a activar las alertas; si persiste, envíale una captura de esto a Diego.</div>');
+  } catch (e) { done('<div>No se pudo contactar al servidor de alertas (' + String(e.message || e).replace(/[<>&]/g, '') + '). Si acabas de actualizar, intenta en un minuto.</div>'); }
 }
 async function testAlert() {
   try { const reg = await navigator.serviceWorker.ready;
@@ -885,6 +914,9 @@ $('btnTheme').onclick = () => { document.documentElement.dataset.theme = isDark(
   setTimeout(() => { if (!S.city) locIntro(); else maybeInstallBanner(); }, 1500);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').then(r => {
     if (store('sp_alert') === '1' && r.active) r.active.postMessage({type: 'cfg', thr: thr(), api: CFG.pushApi});
+    // si el registro en el servidor falló o tiene más de un día, se renueva en silencio
+    if (store('sp_alert') === '1' && CFG.pushApi && 'PushManager' in window && Notification.permission === 'granted' && (store('sp_push') !== '1' || Date.now() - (+store('sp_push_at') || 0) > 864e5))
+      navigator.serviceWorker.ready.then(rg => pushRegister(rg, thr(), false)).then(() => updAlertBtn()).catch(() => {});
     r.addEventListener('updatefound', () => { const nw = r.installing; nw && nw.addEventListener('statechange', () => { if (nw.state === 'installed' && navigator.serviceWorker.controller) showUpdate(); }); });
     setInterval(() => r.update().catch(() => {}), 30 * 60 * 1000);
   }).catch(() => {});

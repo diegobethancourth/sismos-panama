@@ -16,7 +16,11 @@ Con esto cualquier persona recibe alertas tocando **Activar alertas** en la app:
 7. Abre `https://sismos-push.<tu-subdominio>.workers.dev/vapid` en el navegador: debe mostrar `{"key":"B…"}`. Las claves se generan solas la primera vez y quedan en tu KV.
 8. Pásame esa URL (o ponla tú en `index.html`, `CFG.pushApi`) y queda conectado.
 
-Verificación: `…/status` muestra la última consulta, las fuentes y la última alerta enviada.
+Verificación: `…/status` muestra la última consulta, las fuentes, la última alerta enviada y `lastBatch` (cuántos teléfonos recibieron el último envío y qué código respondió el servicio de push: `201` = entregado a Google/Apple/Mozilla; `403`/`400` = rechazado; `410` = suscripción vencida, se borra sola).
+
+Prueba por teléfono: en la app, campana → **Probar alerta desde el servidor**. El servidor manda un push real a ese teléfono y la app muestra qué pasó (no registrado / rechazado / aceptado). Si fue aceptado y no aparece «Prueba recibida ✓», el bloqueo está en los ajustes del teléfono.
+
+Cada vez que cambie `worker.js` hay que volver a pegarlo en Cloudflare (**Edit code** → pegar → **Deploy**).
 
 ## Capacidad
 Cada persona con la app abierta consulta `/igc` una vez por minuto: el plan gratuito (100 000 consultas al día) alcanza para unas 60–70 personas mirando la app todo el día; el de pago, para millones.
