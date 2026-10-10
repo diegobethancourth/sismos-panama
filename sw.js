@@ -1,5 +1,5 @@
 /* Service worker — Monitor Sísmico Panamá */
-const VER = 'sismos-pa-v1';
+const VER = 'sismos-pa-v2';
 const SHELL = ['./', 'index.html', 'manifest.json', 'favicon.ico', 'icons/icon-192.png', 'icons/icon-512.png', 'data/snapshot.json',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
@@ -40,15 +40,22 @@ async function setState(s) { const c = await caches.open('sismos-pa-state'); awa
 self.addEventListener('message', e => { if (e.data && e.data.type === 'thr') getState().then(s => { s.thr = +e.data.thr; return setState(s); }); });
 
 /* Revisión periódica en segundo plano (Chrome Android con la app instalada) */
+function near(a, b) { const r = Math.PI / 180, dLa = (b.lat - a.lat) * r, dLo = (b.lon - a.lon) * r; const x = Math.sin(dLa / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLo / 2) ** 2; return Math.abs(a.t - b.t) <= 60000 && 12742 * Math.asin(Math.sqrt(x)) <= 100; }
 async function checkFeed() {
-  const s = await getState();
-  const r = await fetch(FEED, {cache: 'no-store'}); if (!r.ok) return;
-  const fc = await r.json();
-  const evs = fc.features.filter(f => { const [lo, la] = f.geometry.coordinates; return la >= BOX.la0 && la <= BOX.la1 && lo >= BOX.lo0 && lo <= BOX.lo1 && f.properties.mag >= s.thr && !s.seen.includes(f.id); });
-  for (const f of evs) {
-    const p = f.properties; const t = new Date(p.time).toLocaleTimeString('es-PA', {timeZone: 'America/Panama', hour: '2-digit', minute: '2-digit', hour12: false});
-    await self.registration.showNotification('Sismo M ' + (+p.mag).toFixed(1), {body: p.place + ' · ' + t + ' (Panamá)', icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: f.id});
-    s.seen.push(f.id);
+  const s = await getState(); s.seen = (s.seen || []).filter(x => typeof x === 'object');
+  const evs = [];
+  try { const r = await fetch(FEED, {cache: 'no-store'}); if (r.ok) (await r.json()).features.forEach(f => evs.push({src: 'USGS', id: f.id, t: f.properties.time, mag: +f.properties.mag, lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], place: f.properties.place})); } catch (e) {}
+  try {
+    const st = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 19);
+    const r = await fetch('https://www.seismicportal.eu/fdsnws/event/1/query?format=json&minmagnitude=2.5&starttime=' + st + '&minlatitude=' + BOX.la0 + '&maxlatitude=' + BOX.la1 + '&minlongitude=' + BOX.lo0 + '&maxlongitude=' + BOX.lo1, {cache: 'no-store'});
+    if (r.ok) (await r.json()).features.forEach(f => { const p = f.properties; evs.push({src: 'EMSC', id: p.unid, t: Date.parse(p.time), mag: +p.mag, lat: +p.lat, lon: +p.lon, place: p.flynn_region}); });
+  } catch (e) {}
+  const hits = evs.filter(e => e.lat >= BOX.la0 && e.lat <= BOX.la1 && e.lon >= BOX.lo0 && e.lon <= BOX.lo1 && e.mag >= s.thr).sort((a, b) => a.t - b.t);
+  for (const e of hits) {
+    if (s.seen.some(x => x.id === e.id || near(x, e))) continue;
+    const t = new Date(e.t).toLocaleTimeString('es-PA', {timeZone: 'America/Panama', hour: '2-digit', minute: '2-digit', hour12: false});
+    await self.registration.showNotification('Sismo M ' + e.mag.toFixed(1), {body: e.place + ' · ' + t + ' (Panamá) · ' + e.src, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: e.id});
+    s.seen.push({id: e.id, t: e.t, lat: e.lat, lon: e.lon});
   }
   s.seen = s.seen.slice(-300); await setState(s);
 }

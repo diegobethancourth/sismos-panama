@@ -1,6 +1,6 @@
 # Monitor Sísmico Panamá
 
-PWA instalable que sigue en casi tiempo real los sismos de Panamá y su región (catálogo ComCat de USGS), estima la intensidad sentida en el país y calcula un pronóstico probabilístico de réplicas.
+PWA instalable que sigue en casi tiempo real los sismos de Panamá y su región (USGS ComCat + EMSC, este último también en tiempo real por WebSocket), estima la intensidad sentida en el país y calcula un pronóstico probabilístico de réplicas.
 
 **No es un sistema oficial de alerta.** Ante un sismo sigue a SINAPROC y al Instituto de Geociencias (IGC) de la Universidad de Panamá.
 
@@ -27,5 +27,10 @@ La pestaña "Cómo se calcula" de la app muestra las fórmulas con los valores a
 ## Despliegue
 GitHub Pages desde `main` (raíz). Archivos: `index.html`, `manifest.json`, `sw.js`, `icons/`, `favicon.ico`, `data/snapshot.json` (respaldo sin conexión).
 
+## Fuentes y marca de actualización
+- **USGS** (consulta cada 60 s) es el catálogo de los modelos. **EMSC** agrega redes regionales y llega antes; sus eventos se emparejan con USGS (≤60 s, ≤100 km, ≤1 de magnitud) y los que solo reporta EMSC se marcan aparte.
+- El encabezado muestra la hora de la última consulta exitosa de cada fuente, su último sismo y la versión de la app. Cuando se publica una versión nueva aparece el aviso *Recargar*.
+- El IGC (Universidad de Panamá) no publica un servicio de datos consultable; se integrará si lo habilita.
+
 ## Alertas
-Mientras la app está abierta revisa USGS cada 60 s y notifica eventos sobre el umbral elegido (M≥4.5 / 5 / 6). Con la app instalada en Chrome Android se registra además una revisión periódica en segundo plano (el sistema decide la frecuencia, mínimo ~15 min). Para alertas instantáneas con la app cerrada se requiere un servidor de push.
+Mientras la app está abierta revisa USGS cada 60 s y notifica eventos sobre el umbral elegido (M≥4.5 / 5 / 6). Con la app instalada en Chrome Android se registra además una revisión periódica en segundo plano (el sistema decide la frecuencia, mínimo ~15 min). Para avisos con la app cerrada usa `alertas/` (Apps Script → correo + push ntfy cada minuto); ver `alertas/LEEME.md`.
