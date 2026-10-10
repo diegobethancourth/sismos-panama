@@ -97,7 +97,10 @@ nav.bot svg.i{width:23px;height:23px}
 .check input{width:22px;height:22px;accent-color:var(--acc);flex:none}
 .tel{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-top:1px solid var(--line);text-decoration:none;color:inherit}
 .tel:first-of-type{border-top:0}
-.tel b{font-size:22px;color:var(--acc)}
+.tel{gap:10px}.tel .tn{font-size:16px}
+.btn.call{white-space:nowrap;font-weight:700;padding:9px 12px}
+.chan{padding:10px 0;border-top:1px solid var(--line)}.chan:first-of-type{border-top:0;padding-top:0}
+.chanb{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .pend{background:var(--y);color:var(--yi);border-radius:8px;padding:2px 7px;font-size:12px;font-weight:600}
 .sheet{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-radius:18px 18px 0 0;box-shadow:0 -6px 30px #0004;padding:18px 16px calc(24px + env(safe-area-inset-bottom));z-index:1200;transform:translateY(110%);visibility:hidden;transition:transform .25s,visibility .25s;max-width:640px;margin:auto;max-height:82vh;overflow:auto}
 .sheet.on{transform:none;visibility:visible}
@@ -228,11 +231,18 @@ footer a{color:var(--acc)}
     <div>
       <div class="card"><h3>Prepárate: mochila de emergencia</h3><div id="kit"></div><div class="note" style="margin-top:8px" id="kitN"></div></div>
       <div class="card">
-        <h3>Números de emergencia <span class="pend">por validar</span></h3>
-        <a class="tel" href="tel:911"><span>Emergencias</span><b>911</b></a>
-        <a class="tel" href="tel:103"><span>Bomberos</span><b>103</b></a>
-        <a class="tel" href="tel:104"><span>Policía Nacional</span><b>104</b></a>
-        <a class="tel" href="tel:335"><span>Protección Civil (SINAPROC)</span><b>335</b></a>
+        <h3>Números de emergencia</h3>
+        <div class="mut" style="margin-bottom:4px">Toca el botón para llamar.</div>
+        <div class="tel"><div><b class="tn">Emergencias</b><div class="mut">Ambulancia y emergencias médicas</div></div><a class="btn pri call" href="tel:911" aria-label="Llamar a Emergencias al 911"><svg class="i" viewBox="0 0 24 24" style="width:17px;height:17px"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>Llamar 911</a></div>
+        <div class="tel"><div><b class="tn">Bomberos</b><div class="mut">Incendios, rescate y fugas de gas</div></div><a class="btn pri call" href="tel:103" aria-label="Llamar a Bomberos al 103"><svg class="i" viewBox="0 0 24 24" style="width:17px;height:17px"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>Llamar 103</a></div>
+        <div class="tel"><div><b class="tn">Policía Nacional</b><div class="mut">Seguridad y accidentes</div></div><a class="btn pri call" href="tel:104" aria-label="Llamar a Policía Nacional al 104"><svg class="i" viewBox="0 0 24 24" style="width:17px;height:17px"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>Llamar 104</a></div>
+        <div class="tel"><div><b class="tn">Protección Civil (SINAPROC)</b><div class="mut">Daños por el sismo, evacuación y albergues</div></div><a class="btn pri call" href="tel:335" aria-label="Llamar a Protección Civil (SINAPROC) al 335"><svg class="i" viewBox="0 0 24 24" style="width:17px;height:17px"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>Llamar 335</a></div>
+      </div>
+      <div class="card">
+        <h3>Canales oficiales</h3>
+        <div class="mut" style="margin-bottom:8px">Sigue aquí los comunicados oficiales; esta app no los reemplaza.</div>
+        <div class="chan"><b>Instituto de Geociencias · Universidad de Panamá</b><div class="mut">Registro oficial de sismos en Panamá · @igcpanamaup</div><div class="chanb"><a class="btn sm" href="https://sismosgeociencias.up.ac.pa/" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M14 3h7v7M21 3l-9 9M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></svg>Sismos registrados</a><a class="btn sm" href="https://geociencias.up.ac.pa/" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M14 3h7v7M21 3l-9 9M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></svg>Sitio web</a><a class="btn sm" href="https://x.com/igcpanamaup" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M14 3h7v7M21 3l-9 9M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></svg>X</a><a class="btn sm" href="https://www.instagram.com/igcpanamaup/" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M14 3h7v7M21 3l-9 9M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></svg>Instagram</a><a class="btn sm" href="https://www.facebook.com/igcpanamaup" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M14 3h7v7M21 3l-9 9M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></svg>Facebook</a></div></div>
+        <div class="chan"><b>SINAPROC · Sistema Nacional de Protección Civil</b><div class="mut">Alertas, evacuaciones y albergues</div><div class="chanb"><a class="btn sm" href="https://www.sinaproc.gob.pa/" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M14 3h7v7M21 3l-9 9M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></svg>Sitio web</a><a class="btn sm" href="tel:335"><svg class="i" viewBox="0 0 24 24" style="width:17px;height:17px"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>Llamar 335</a></div></div>
       </div>
     </div>
   </div>
@@ -298,7 +308,7 @@ footer a{color:var(--acc)}
    Sismos Panamá — v1.2.0
    ===================================================================== */
 const CFG = {
-  version: '1.5.1', published: '2026-10-10T07:55:00Z',
+  version: '1.5.2', published: '2026-10-10T08:05:00Z',
   bbox: {minlatitude: 5, maxlatitude: 11, minlongitude: -84.5, maxlongitude: -76},
   fdsn: 'https://earthquake.usgs.gov/fdsnws/event/1/query',
   feedDay: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson',
