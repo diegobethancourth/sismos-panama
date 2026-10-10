@@ -296,7 +296,7 @@ footer a{color:var(--acc)}
    Sismos Panamá — v1.2.0
    ===================================================================== */
 const CFG = {
-  version: '1.4.2', published: '2026-10-10T07:35:00Z',
+  version: '1.4.3', published: '2026-10-10T07:40:00Z',
   bbox: {minlatitude: 5, maxlatitude: 11, minlongitude: -84.5, maxlongitude: -76},
   fdsn: 'https://earthquake.usgs.gov/fdsnws/event/1/query',
   feedDay: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson',
@@ -782,9 +782,9 @@ function alertSheet() {
   const opt = (v, a, b) => '<label class="opt"><input type="radio" name="thr" value="' + v + '"' + (t === v ? ' checked' : '') + '><div><b>' + a + '</b><div class="mut">' + b + '</div></div></label>';
   sheet('<div class="big" style="font-size:19px;margin-bottom:4px;padding-right:70px">' + (on ? 'Alertas activas' : 'Recibir alertas en este teléfono') + '</div><div class="mut" style="margin-bottom:10px">' + (CFG.pushApi ? 'Te avisamos aunque la app esté cerrada.' : 'Por ahora te avisamos mientras la app está abierta.') + ' ¿Desde qué tamaño?</div>' +
     opt(6, 'Solo sismos fuertes (M6 o más)', 'Pocos avisos; se sienten fuerte en buena parte del país.') + opt(5, 'Moderados o más (M5 o más)', 'Recomendado durante una secuencia de réplicas.') + opt(4.5, 'Todos los que se sienten (M4.5 o más)', 'Puede ser varias veces al día después de un sismo fuerte.') +
-    '<button class="btn pri full" id="alertOk" style="margin-top:6px">' + (on ? 'Guardar' : 'Activar alertas') + '</button>' + (on ? '<button class="btn full" id="alertOff" style="margin-top:8px">Desactivar alertas</button>' : ''));
+    '<button class="btn pri full" id="alertOk" style="margin-top:6px">' + (on ? 'Guardar' : 'Activar alertas') + '</button>' + (on ? '<button class="btn full" id="alertTest" style="margin-top:8px">Enviar notificación de prueba</button><button class="btn full" id="alertOff" style="margin-top:8px">Desactivar alertas</button>' : ''));
   $('alertOk').onclick = () => enableAlerts(+document.querySelector('input[name=thr]:checked').value);
-  if (on) $('alertOff').onclick = disableAlerts;
+  if (on) { $('alertOff').onclick = disableAlerts; $('alertTest').onclick = testAlert; }
 }
 async function enableAlerts(t) {
   const perm = await Notification.requestPermission(); if (perm !== 'granted') { toast('Sin permiso de notificaciones: actívalo en la configuración del navegador.', 5000); return; }
@@ -804,6 +804,12 @@ async function enableAlerts(t) {
   reg.active && reg.active.postMessage({type: 'cfg', thr: t, api: CFG.pushApi});
   try { if ('periodicSync' in reg) await reg.periodicSync.register('sismos', {minInterval: 15 * 60 * 1000}); } catch (e) {}
   closeSheet(); updAlertBtn(); toast('Alertas activas desde M' + t + (store('sp_push') === '1' ? ', también con la app cerrada.' : ' mientras la app está abierta.'), 5000);
+}
+async function testAlert() {
+  try { const reg = await navigator.serviceWorker.ready;
+    await reg.showNotification('Prueba · Sismo M 6.0', {body: 'Así llegará una alerta. Si no sonó ni vibró, revisa los ajustes de notificaciones del teléfono para esta app.', icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: 'prueba', renotify: true, vibrate: [400, 150, 400, 150, 400]});
+    closeSheet(); toast('Notificación de prueba enviada');
+  } catch (e) { toast('No se pudo mostrar la notificación: revisa el permiso.'); }
 }
 async function disableAlerts() {
   store('sp_alert', '0'); store('sp_push', '0');
