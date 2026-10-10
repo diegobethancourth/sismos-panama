@@ -37,7 +37,7 @@ main{max-width:1100px;margin:0 auto;padding:12px 12px calc(var(--navh) + 24px)}
 .card h3{margin:0 0 8px;font-size:14px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.4px;display:flex;align-items:center;gap:7px}
 .status{border:0;padding:12px 14px}
 .lvl{display:inline-flex;align-items:center;gap:5px;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;padding:3px 9px;border-radius:20px;background:#ffffff8c}
-.status h2{margin:6px 0 2px;font-size:19px;line-height:1.2}
+.status h2{margin:6px 0 2px;font-size:19px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .status p{margin:0;font-size:14.5px}
 .status .last{margin-top:8px;display:flex;gap:10px;align-items:center;font-size:14.5px;border:0;padding:0}
 .mag{display:inline-grid;place-items:center;min-width:46px;height:38px;border-radius:10px;font-weight:800;font-size:17px;color:#fff;flex:none}
@@ -58,6 +58,13 @@ select.c{background:var(--chip);border:1px solid var(--line);border-radius:10px;
 .dots{display:flex;gap:5px;margin:7px 0 3px}
 .dots i{width:16px;height:16px;border-radius:50%;background:var(--line)}
 .dots i.f{background:#e8590c}
+.help{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--mut);background:transparent;color:var(--mut);font-weight:700;font-size:13px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}
+.pace{display:flex;align-items:center;gap:8px;background:var(--chip);border-radius:10px;padding:7px 10px;margin:2px 0 6px;font-size:14px}
+.pace .spark{display:flex;align-items:flex-end;gap:2px;height:22px;flex:none}.pace .spark i{width:4px;background:var(--acc);border-radius:2px 2px 0 0;opacity:.8}
+.pr{padding:8px 0;border-top:1px solid var(--line)}.pr:first-of-type{border-top:0}
+.pr .h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pr .d{display:flex;align-items:center;gap:8px;margin-top:4px;font-size:14px;color:var(--mut)}
+.pr .dots{margin:0}.pr .dots i{width:13px;height:13px}
 .ev{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line);cursor:pointer}
 .ev:first-of-type{border-top:0}
 .ev .w{flex:1;min-width:0}.ev .pl{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -157,10 +164,9 @@ footer a{color:var(--acc)}
   <div class="cols">
     <div>
       <div class="card" id="cardExpect">
-        <h3><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Qué esperar<span class="grow"></span>
+        <h3><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Qué esperar<button class="help" id="btnHelpFc" aria-label="¿Qué es este pronóstico?">?</button><span class="grow"></span>
           <span class="seg" id="segWin"><button data-w="1" class="on">24 h</button><button data-w="7">7 días</button></span></h3>
         <div id="probs"></div>
-        <p class="note" style="margin:6px 0 0">Son probabilidades, no predicciones: nadie puede decir a qué hora será la próxima réplica.</p>
       </div>
       <div class="card">
         <h3><svg class="i" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Últimos sismos</h3>
@@ -173,7 +179,7 @@ footer a{color:var(--acc)}
         <h3><svg class="i" viewBox="0 0 24 24"><path d="M3 20h18M6 16v4M10 11v9M14 14v6M18 7v13"/></svg>Ritmo de réplicas</h3>
         <div class="mut" id="rateTxt" style="margin-bottom:6px"></div>
         <div class="chartbox"><canvas id="chRateHome"></canvas></div>
-        <div class="note">Toca una barra para ver los sismos de ese período. La línea es el ritmo esperado si las réplicas siguen bajando de forma normal.</div>
+        <div class="note">Todos los sismos de la zona de réplicas (IGC, USGS y EMSC). Toca una barra para ver la lista de ese período. La línea es el ritmo esperado de réplicas M4.5+ si siguen bajando de forma normal.</div>
       </div>
       <div class="card">
         <h3><svg class="i" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-12a7 7 0 1 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>En tu zona<span class="grow"></span><button class="btn sm" id="btnLocChange">Cambiar</button></h3>
@@ -288,7 +294,7 @@ footer a{color:var(--acc)}
    Sismos Panamá — v1.2.0
    ===================================================================== */
 const CFG = {
-  version: '1.3.2', published: '2026-10-10T07:05:00Z',
+  version: '1.4.0', published: '2026-10-10T07:25:00Z',
   bbox: {minlatitude: 5, maxlatitude: 11, minlongitude: -84.5, maxlongitude: -76},
   fdsn: 'https://earthquake.usgs.gov/fdsnws/event/1/query',
   feedDay: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson',
@@ -418,6 +424,7 @@ function analyze() {
   S.radius = Math.max(100, 1.5 * 10 ** (-3.55 + 0.74 * main.mag));   // Wells & Coppersmith (1994)
   S.seq = base.filter(e => e.t > main.t && hav(main.lat, main.lon, e.lat, e.lon) <= S.radius);
   S.seqExtra = S.events.filter(e => !e.hasUsgs && base !== S.events && e.t > main.t && hav(main.lat, main.lon, e.lat, e.lon) <= S.radius);
+  S.seqAll = S.events.filter(e => e.t > main.t && hav(main.lat, main.lon, e.lat, e.lon) <= S.radius);   // todas las fuentes (IGC, USGS, EMSC), para lo que ve el usuario
   S.T = (now() - main.t) / 864e5;
   const aft = S.seq.filter(e => e.mag >= CFG.mc), fit = fitOmori(aft.map(e => (e.t - main.t) / 864e5), S.T), bv = bValue(S.seq.map(e => e.mag), CFG.mc), P = CFG.prior;
   S.fit = fit ? Object.assign(fit, {b: bv ? Math.min(1.3, Math.max(0.7, (bv.n * bv.b + P.nb * P.b0) / (bv.n + P.nb))) : P.b0, bRaw: bv, n: aft.length}) : null;
@@ -472,12 +479,12 @@ function renderStatus() {
   if (S.main) {
     const p6 = S.fit ? Pr(1, 6) : (S.T < 2 ? 0.2 : 0.05), strong = S.seq.filter(e => e.mag >= 6 && now() - e.t < 2 * 36e5).length;
     L = strong || p6 >= 0.5 ? ['Actividad alta', 'r'] : p6 >= 0.1 ? ['Actividad elevada', 'y'] : ['Actividad baja', 'g'];
-    title = 'Réplicas del terremoto M ' + S.main.mag.toFixed(1) + ' (' + fmtT(S.main.t) + ')';
-    text = rateTrend().down ? 'Siguen y <b>van bajando</b>; todavía pueden ocurrir algunas fuertes.' : 'La actividad continúa; pueden ocurrir réplicas fuertes.';
+    title = 'Sismo M' + S.main.mag.toFixed(1) + ' · ' + fmtT(S.main.t).replace(',', '');
+    text = rateTrend().down ? 'Réplicas en curso: <b>van bajando</b>, pero aún pueden ocurrir algunas fuertes.' : 'Réplicas en curso: pueden ocurrir algunas fuertes.';
   } else {
     const big24 = S.events.filter(e => now() - e.t < 864e5 && e.mag >= 5).length;
     L = big24 ? ['Actividad moderada', 'y'] : ['Actividad baja', 'g'];
-    title = 'Sin terremotos (M6 o más) en los últimos ' + S.days + ' días'; text = big24 ? 'Hubo sismos moderados en las últimas 24 h.' : 'Actividad sísmica habitual en la región.';
+    title = 'Sin sismos fuertes (M6 o más) en los últimos ' + S.days + ' días'; text = big24 ? 'Hubo sismos moderados en las últimas 24 h.' : 'Actividad sísmica habitual en la región.';
   }
   c.style.background = 'var(--' + L[1] + ')'; c.style.color = 'var(--' + L[1] + 'i)';
   c.innerHTML = '<span class="lvl"><svg class="i" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M2 12h3l2-5 3 11 3-14 3 12 2-4h4"/></svg>' + L[0] + '</span><h2>' + title + '</h2><p>' + text + '</p>' +
@@ -485,15 +492,24 @@ function renderStatus() {
 }
 function renderProbs() {
   $('segWin').style.display = S.main && S.fit ? '' : 'none';
-  if (!S.main) { $('probs').innerHTML = '<div class="mut">No hay una secuencia de réplicas activa, así que no se calcula un pronóstico. Panamá tiene sismos pequeños y moderados con frecuencia; la guía de "Qué hacer" sigue siendo útil.</div>'; return; }
-  if (!S.fit) { $('probs').innerHTML = '<div class="mut">Todavía hay pocas réplicas registradas para calcular probabilidades. Se actualiza solo cada minuto.</div>'; return; }
-  const W = S.win, mm = S.main.mag, big = S.seq.filter(e => e.mag >= 6), n5 = expSeq(S.T, S.T + W, 5);
-  const items = [['Réplicas moderadas (M5 o más)', 'Se sienten claramente cerca de la zona de réplicas.', Pr(W, 5), 'Se esperan ' + poissonQ(n5, 0.025) + ' a ' + poissonQ(n5, 0.975) + '.'],
-    ['Una réplica fuerte (M6 o más)', big.length ? 'Como la' + (big.length > 1 ? 's' : '') + ' de las ' + big.slice(-2).map(e => hora(e.t)).join(' y ') + '.' : 'Se siente fuerte en buena parte del país.', Pr(W, 6), null],
-    ['Un sismo mayor que el principal (M' + mm.toFixed(1) + ')', 'Es raro, pero no imposible.', Pr(W, mm), null]];
-  $('probs').innerHTML = items.map(([t, s, p, extra]) => { const [w, c] = word(p), k = Math.round(p * 10);
-    return '<div class="prob"><div class="h"><span class="big">' + t + '</span><span class="word" style="background:var(--' + c + ');color:var(--' + c + 'i)">' + w + '</span></div><div class="mut">' + s + '</div>' +
-      (extra ? '<div style="margin-top:3px">' + extra + '</div>' : '<div class="dots">' + Array.from({length: 10}, (_, i) => '<i class="' + (i < k ? 'f' : '') + '"></i>').join('') + '</div><div>' + frac(p) + '</div>') + '</div>'; }).join('');
+  if (!S.main) { $('probs').innerHTML = '<div class="mut">No hay una secuencia de réplicas activa, así que no se calcula un pronóstico. La guía de "Qué hacer" sigue siendo útil.</div>'; return; }
+  if (!S.fit) { $('probs').innerHTML = '<div class="mut">Todavía hay pocas réplicas registradas para calcular probabilidades. Se actualiza cada minuto.</div>'; return; }
+  const W = S.win, mm = S.main.mag, n5 = expSeq(S.T, S.T + W, 5), {w, counts} = rateBins(), tr = rateTrend(), unit = w === 1 ? 'por hora' : w === 6 ? 'cada 6 h' : 'por día';
+  const now1 = expSeq(S.T, S.T + w / 24, CFG.mc);
+  const pace = '<div class="pace"><span class="spark">' + counts.slice(-12).map(v => '<i style="height:' + Math.max(2, v / Math.max(1, ...counts) * 22) + 'px"></i>').join('') + '</span><span><b>Ritmo:</b> ' + Math.round(tr.a || 0) + ' ' + unit + ' al inicio → ' + Math.round(tr.b || 0) + ' ahora · se esperan ~' + (now1 < 1 ? now1.toFixed(1) : Math.round(now1)) + ' ' + unit + ' (M4.5+)</span></div>';
+  const row = (t, sub, p, extra) => { const [wd, c] = word(p), k = Math.round(p * 10);
+    return '<div class="pr"><div class="h"><span><b>' + t + '</b> <span class="mut">' + sub + '</span></span><span class="word" style="background:var(--' + c + ');color:var(--' + c + 'i)">' + wd + '</span></div>' +
+      '<div class="d">' + (extra || '<span class="dots">' + Array.from({length: 10}, (_, i) => '<i class="' + (i < k ? 'f' : '') + '"></i>').join('') + '</span><span>' + frac(p) + '</span>') + '</div></div>'; };
+  $('probs').innerHTML = pace + row('Réplicas moderadas', 'M5+', Pr(W, 5), 'Se esperan ' + poissonQ(n5, 0.025) + ' a ' + poissonQ(n5, 0.975) + ' en ' + (W === 1 ? '24 h' : '7 días')) +
+    row('Una réplica fuerte', 'M6+', Pr(W, 6)) + row('Un sismo mayor que el principal', 'M' + mm.toFixed(1) + '+', Pr(W, mm));
+}
+function fcHelp() {
+  sheet('<div class="big" style="font-size:19px;margin-bottom:6px;padding-right:70px">¿Qué es este pronóstico?</div>' +
+    '<div style="margin-bottom:8px">Es un <b>cálculo estadístico</b> hecho con los sismos registrados desde el principal y con modelos científicos que también usa el Servicio Geológico de EE. UU. (ley de Omori y modelo de Reasenberg y Jones).</div>' +
+    '<div style="margin-bottom:8px">Dice <b>qué tan probable</b> es que ocurra una réplica de cierto tamaño en las próximas 24 horas o 7 días. <b>No dice cuándo ni dónde</b>: nadie puede predecir la hora exacta de un sismo.</div>' +
+    '<div class="mut" style="margin-bottom:12px">Se recalcula solo cada minuto. Si el ritmo de réplicas cambia, las probabilidades cambian.</div>' +
+    '<button class="btn pri full" id="goFc">Ver el análisis completo</button>');
+  $('goFc').onclick = () => { closeSheet(); go('tech', 'fc'); };
 }
 function evRow(e) {
   const r = S.city ? Math.round(mmiAt(e, S.city[1], S.city[2])) : null;
@@ -502,7 +518,7 @@ function evRow(e) {
 function renderList() { $('lastList').innerHTML = S.events.slice(-5).reverse().map(evRow).join('') || '<div class="mut">Sin sismos en la ventana.</div>'; }
 function rateBins() {
   const m = S.main, H = Math.max(1, Math.ceil(S.T * 24)), w = H <= 36 ? 1 : H <= 24 * 7 ? 6 : 24, nb = Math.ceil(H / w);
-  const bins = Array.from({length: nb}, () => []); for (const e of S.seq) { const i = Math.floor((e.t - m.t) / 36e5 / w); if (i < nb) bins[i].push(e); }
+  const bins = Array.from({length: nb}, () => []); for (const e of (S.seqAll || S.seq)) { const i = Math.floor((e.t - m.t) / 36e5 / w); if (i < nb) bins[i].push(e); }
   return {w, bins, counts: bins.map(b => b.filter(e => e.mag >= CFG.mc).length)};
 }
 function rateTrend() {
@@ -515,14 +531,18 @@ function renderRateHome() {
   const exp = bins.map((_, i) => !S.fit || i === 0 ? null : expSeq(i * w / 24, Math.min((i + 1) * w / 24, T), CFG.mc));   // la primera hora no se compara: detección incompleta
   const labels = bins.map((_, i) => w === 24 ? fmtD(m.t + i * 864e5) : hora(m.t + i * w * 36e5));
   const unit = w === 1 ? 'por hora' : w === 6 ? 'cada 6 horas' : 'por día', tr = rateTrend();
-  $('rateTxt').innerHTML = 'Réplicas M4.5+ ' + unit + ': <b>' + Math.round(tr.a || 0) + '</b> al inicio → <b>' + Math.round(tr.b || 0) + '</b> ahora.';
+  $('rateTxt').innerHTML = (S.seqAll || S.seq).length + ' sismos desde el principal · M4.5+ ' + unit + ': <b>' + Math.round(tr.a || 0) + '</b> al inicio → <b>' + Math.round(tr.b || 0) + '</b> ahora.';
   if (S.charts.rateHome) S.charts.rateHome.destroy();
+  const small = bins.map(b => b.filter(e => e.mag < CFG.mc).length), strong = bins.map(b => b.filter(e => e.mag >= 6).length), mid = bins.map((b, i) => counts[i] - strong[i]);
   S.charts.rateHome = new Chart($('chRateHome'), {data: {labels, datasets: [
-    {type: 'bar', label: 'Réplicas', data: counts, backgroundColor: bins.map(b => b.some(e => e.mag >= 6) ? '#d7301f' : cssv('--acc') + 'b0'), borderRadius: 4},
-    {type: 'line', label: 'Esperado', data: exp, borderColor: '#8a1c1c', borderWidth: 2, pointRadius: 0, tension: .35}]},
+    {type: 'bar', label: 'M6 o más', data: strong, backgroundColor: '#d7301f', stack: 's', borderRadius: 3},
+    {type: 'bar', label: 'M4.5 a 5.9', data: mid, backgroundColor: cssv('--acc') + 'c0', stack: 's', borderRadius: 3},
+    {type: 'bar', label: 'Menores de 4.5', data: small, backgroundColor: cssv('--acc') + '40', stack: 's', borderRadius: 3},
+    {type: 'line', label: 'Esperado M4.5+', data: exp, borderColor: '#8a1c1c', borderWidth: 2, pointRadius: 0, tension: .35}]},
     options: {maintainAspectRatio: false, animation: false, onClick: (ev, el) => { if (el.length) openBin(bins[el[0].index], labels[el[0].index]); },
-      plugins: {legend: {display: false}, tooltip: {callbacks: {title: i => 'Desde ' + i[0].label, label: c => c.datasetIndex ? 'Esperado: ' + (c.raw || 0).toFixed(1) : c.raw + ' réplicas; mayor M ' + Math.max(0, ...bins[c.dataIndex].map(e => e.mag)).toFixed(1)}}},
-      scales: {x: {title: {display: true, text: w === 24 ? 'Día' : 'Hora (Panamá)'}, ticks: {maxRotation: 0, autoSkip: true, maxTicksLimit: 6}, grid: {display: false}}, y: {title: {display: true, text: 'Réplicas ' + unit}, beginAtZero: true, ticks: {precision: 0}}}}});
+      interaction: {mode: 'index', intersect: false},
+      plugins: {legend: {display: true, position: 'bottom', labels: {boxWidth: 10, font: {size: 11}}}, tooltip: {callbacks: {title: i => 'Desde ' + i[0].label + ' · ' + bins[i[0].dataIndex].length + ' sismos, mayor M ' + Math.max(0, ...bins[i[0].dataIndex].map(e => e.mag)).toFixed(1), label: c => c.dataset.label + ': ' + (c.datasetIndex === 3 ? (c.raw || 0).toFixed(1) : c.raw)}}},
+      scales: {x: {stacked: true, title: {display: true, text: w === 24 ? 'Día' : 'Hora (Panamá)'}, ticks: {maxRotation: 0, autoSkip: true, maxTicksLimit: 6}, grid: {display: false}}, y: {stacked: true, title: {display: true, text: 'Sismos ' + unit}, beginAtZero: true, ticks: {precision: 0}}}}});
 }
 function openBin(list, lbl) { sheet('<div class="big" style="margin-bottom:6px;padding-right:70px">Sismos desde ' + lbl + '</div>' + (list.length ? list.slice().reverse().map(evRow).join('') : '<div class="mut">Ninguno registrado.</div>')); }
 const refQuake = () => S.main || S.events.reduce((a, e) => !a || e.mag > a.mag ? e : a, null);
@@ -533,7 +553,7 @@ function renderFeel() {
   const pool = S.seq.length ? S.seq : [ref]; let near = pool[0], dm = 1e9; for (const e of pool) { const x = hav(e.lat, e.lon, la, lo); if (x < dm) { dm = x; near = e; } }
   const row = (t, v) => { const r = Math.round(v); return '<div class="feel"><div class="mmi" style="background:' + MMI_COL[r] + '">' + ROMAN[r] + '</div><div><div class="mut">' + t + '</div><div class="big">' + WORD_MMI[r] + '</div><div style="font-size:14.5px">' + EFFECT[r] + '</div></div></div>'; };
   $('feel').innerHTML = '<div class="mut" style="margin-bottom:2px"><b>' + n + '</b>, a ' + d + ' km del ' + (S.main ? 'epicentro' : 'sismo mayor reciente') + (S.city.gps ? ' (por tu ubicación)' : '') + '</div>' +
-    row(S.main ? 'El terremoto principal' : 'El sismo mayor de los últimos ' + S.days + ' días (M ' + ref.mag.toFixed(1) + ')', mmiAt(ref, la, lo)) +
+    row(S.main ? 'El sismo principal' : 'El sismo mayor de los últimos ' + S.days + ' días (M ' + ref.mag.toFixed(1) + ')', mmiAt(ref, la, lo)) +
     row('Si llega una réplica fuerte (M6)', mmiAt({mag: 6, lat: near.lat, lon: near.lon, depth: 10}, la, lo)) + row('Si llega una réplica moderada (M5)', mmiAt({mag: 5, lat: near.lat, lon: near.lon, depth: 10}, la, lo));
 }
 /* ubicación: primero se explica, luego se pide */
@@ -611,7 +631,7 @@ function openEv(e) {
 }
 function legend() {
   sheet('<div class="big" style="margin-bottom:6px;padding-right:70px">Colores: cuánto se sintió</div>' + [8, 7, 6, 5, 4, 3].map(r => '<div class="legrow"><i style="background:' + MMI_COL[r] + '"></i><b>' + WORD_MMI[r] + '</b><span class="mut">' + EFFECT[r] + '</span></div>').join('') +
-    '<div class="big" style="margin:12px 0 4px">Círculos: cada sismo</div><div class="mut">Más grande y más rojo = más fuerte. Borde negro = en la última hora. La estrella es el terremoto principal. El botón de capas (arriba a la izquierda del mapa) agrega densidad de epicentros, ShakeMap y reportes ciudadanos de USGS cuando existen.</div>');
+    '<div class="big" style="margin:12px 0 4px">Círculos: cada sismo</div><div class="mut">Más grande y más rojo = más fuerte. Borde negro = en la última hora. La estrella es el sismo principal. El botón de capas (arriba a la izquierda del mapa) agrega densidad de epicentros, ShakeMap y reportes ciudadanos de USGS cuando existen.</div>');
 }
 
 /* ---------------- QUÉ HACER ---------------- */
@@ -757,7 +777,7 @@ function alertSheet() {
   const on = store('sp_alert') === '1' && Notification.permission === 'granted', t = thr();
   const opt = (v, a, b) => '<label class="opt"><input type="radio" name="thr" value="' + v + '"' + (t === v ? ' checked' : '') + '><div><b>' + a + '</b><div class="mut">' + b + '</div></div></label>';
   sheet('<div class="big" style="font-size:19px;margin-bottom:4px;padding-right:70px">' + (on ? 'Alertas activas' : 'Recibir alertas en este teléfono') + '</div><div class="mut" style="margin-bottom:10px">' + (CFG.pushApi ? 'Te avisamos aunque la app esté cerrada.' : 'Por ahora te avisamos mientras la app está abierta.') + ' ¿Desde qué tamaño?</div>' +
-    opt(6, 'Solo sismos fuertes (M6 o más)', 'Pocos avisos; se sienten fuerte en buena parte del país.') + opt(5, 'Moderados o más (M5 o más)', 'Recomendado durante una secuencia de réplicas.') + opt(4.5, 'Todos los que se sienten (M4.5 o más)', 'Puede ser varias veces al día después de un terremoto.') +
+    opt(6, 'Solo sismos fuertes (M6 o más)', 'Pocos avisos; se sienten fuerte en buena parte del país.') + opt(5, 'Moderados o más (M5 o más)', 'Recomendado durante una secuencia de réplicas.') + opt(4.5, 'Todos los que se sienten (M4.5 o más)', 'Puede ser varias veces al día después de un sismo fuerte.') +
     '<button class="btn pri full" id="alertOk" style="margin-top:6px">' + (on ? 'Guardar' : 'Activar alertas') + '</button>' + (on ? '<button class="btn full" id="alertOff" style="margin-top:8px">Desactivar alertas</button>' : ''));
   $('alertOk').onclick = () => enableAlerts(+document.querySelector('input[name=thr]:checked').value);
   if (on) $('alertOff').onclick = disableAlerts;
@@ -812,7 +832,7 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(b.datas
 $('subtabs').onclick = e => { const b = e.target.closest('button'); if (b) setSub(b.dataset.s); };
 $('segWin').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.win = +b.dataset.w; document.querySelectorAll('#segWin button').forEach(x => x.classList.toggle('on', x === b)); renderProbs(); };
 $('chipsT').onclick = e => { const b = e.target.closest('.chip'); if (!b) return; S.hrs = +b.dataset.h; document.querySelectorAll('#chipsT .chip').forEach(x => x.classList.toggle('on', x === b)); drawMap(); renderMapList(); };
-$('btnLeg').onclick = legend; $('btnLocChange').onclick = locIntro; $('btnUpd').onclick = sourcesSheet; $('btnAlert').onclick = alertSheet;
+$('btnLeg').onclick = legend; $('btnHelpFc').onclick = fcHelp; $('btnLocChange').onclick = locIntro; $('btnUpd').onclick = sourcesSheet; $('btnAlert').onclick = alertSheet;
 $('sheetX').onclick = closeSheet; $('scrim').onclick = closeSheet;
 document.addEventListener('click', e => { const r = e.target.closest('.ev[data-k]'); if (!r) return; const ev = S.events.find(x => x.key === r.dataset.k); if (ev) openEv(ev); });
 $('evTable').onclick = e => { const th = e.target.closest('th'); if (!th) return; const k = th.dataset.k; if (S.sortKey === k) S.sortDir *= -1; else { S.sortKey = k; S.sortDir = ['place', 'magType', 'src'].includes(k) ? 1 : -1; } renderEvTable(); };
@@ -822,7 +842,7 @@ $('btnClear').onclick = () => { $('fText').value = ''; $('fMag').value = '0'; $(
 $('btnXlsF').onclick = () => exportXlsx(false); $('btnXlsA').onclick = () => exportXlsx(true);
 $('btnShare').onclick = () => {
   const last = lastEvent(); if (!last) return; const url = location.origin + location.pathname;
-  const txt = S.main && S.fit ? 'Sismos Panamá (' + hora(Date.now()) + '): réplicas del terremoto M' + S.main.mag.toFixed(1) + (rateTrend().down ? ' van bajando' : ' continúan') + '. Último: M' + last.mag.toFixed(1) + ' ' + ago(last.t) + ', ' + lugar(last.place) + '. Próximas 24 h: réplica fuerte (M6+) ' + word(Pr(1, 6))[0].toLowerCase() + ' (' + frac(Pr(1, 6)) + '). Ten lista tu mochila. ' + url
+  const txt = S.main && S.fit ? 'Sismos Panamá (' + hora(Date.now()) + '): réplicas del sismo M' + S.main.mag.toFixed(1) + (rateTrend().down ? ' van bajando' : ' continúan') + '. Último: M' + last.mag.toFixed(1) + ' ' + ago(last.t) + ', ' + lugar(last.place) + '. Próximas 24 h: réplica fuerte (M6+) ' + word(Pr(1, 6))[0].toLowerCase() + ' (' + frac(Pr(1, 6)) + '). Ten lista tu mochila. ' + url
     : 'Sismos Panamá (' + hora(Date.now()) + '): último sismo M' + last.mag.toFixed(1) + ' ' + ago(last.t) + ', ' + lugar(last.place) + '. ' + url;
   if (navigator.share) navigator.share({text: txt}).catch(() => {}); else window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
 };
