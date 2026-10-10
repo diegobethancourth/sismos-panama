@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sismos Panamá · Propuesta</title>
+<meta name="theme-color" content="#0b2f5b">
+<link rel="icon" href="../favicon.ico">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f2f4f7;--card:#fff;--ink:#14202e;--mut:#5a6878;--line:#e1e6ec;--head:#0b2f5b;--acc:#1f5fae;
+--g:#dcf5e6;--gi:#145c36;--y:#fff0c2;--yi:#6e4c00;--o:#ffe0cc;--oi:#8a3a00;--r:#fde0df;--ri:#8a1c1c;--b:#dbe9fb;--bi:#123f75;--p:#ece3fb;--pi:#4b2a86;--chip:#eef2f6}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0f151d;--card:#18212c;--ink:#e7ecf2;--mut:#9aa7b6;--line:#2a3644;--head:#0a2240;--acc:#6aa5f0;
+--g:#1c3d2b;--gi:#b6efcd;--y:#45391a;--yi:#ffe39b;--o:#4a2e1c;--oi:#ffc9a3;--r:#4a2526;--ri:#ffc9c6;--b:#1d3352;--bi:#bcd7fb;--p:#33284c;--pi:#dccdfb;--chip:#223040}}
+:root[data-theme=dark]{--bg:#0f151d;--card:#18212c;--ink:#e7ecf2;--mut:#9aa7b6;--line:#2a3644;--head:#0a2240;--acc:#6aa5f0;
+--g:#1c3d2b;--gi:#b6efcd;--y:#45391a;--yi:#ffe39b;--o:#4a2e1c;--oi:#ffc9a3;--r:#4a2526;--ri:#ffc9c6;--b:#1d3352;--bi:#bcd7fb;--p:#33284c;--pi:#dccdfb;--chip:#223040}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 Inter,system-ui,sans-serif}
+button,select{font:inherit;color:inherit}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.proto{background:#5b2a86;color:#fff;font-size:12px;text-align:center;padding:4px 8px}
+header{background:var(--head);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:900}
+header .t{font-weight:700;font-size:17px}
+header .upd{font-size:12.5px;opacity:.9;display:flex;align-items:center;gap:6px;background:#ffffff14;border:0;color:#fff;border-radius:20px;padding:5px 10px;cursor:pointer}
+.dot{width:8px;height:8px;border-radius:50%;background:#55d68a}
+.grow{flex:1}
+.ib{background:#ffffff14;border:0;color:#fff;border-radius:9px;width:36px;height:36px;display:grid;place-items:center;cursor:pointer}
+main{max-width:1100px;margin:0 auto;padding:14px 14px 96px}
+.view{display:none}.view.on{display:block}
+.cols{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:900px){.cols{grid-template-columns:1.1fr 1fr}main{padding-bottom:30px}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+.card h3{margin:0 0 10px;font-size:15px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.4px;display:flex;align-items:center;gap:7px}
+.status{border:0;padding:18px}
+.status .lvl{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.5px;padding:4px 10px;border-radius:20px;background:#ffffff80}
+.status h2{margin:10px 0 6px;font-size:26px;line-height:1.15}
+.status p{margin:0 0 6px;font-size:16px}
+.status .last{margin-top:12px;padding-top:12px;border-top:1px solid #0000001a;display:flex;gap:12px;align-items:center}
+.mag{display:inline-grid;place-items:center;min-width:52px;height:52px;border-radius:12px;font-weight:800;font-size:20px;color:#fff;flex:none}
+.mag.s{min-width:44px;height:36px;font-size:16px;border-radius:9px}
+.big{font-size:17px;font-weight:600}
+.mut{color:var(--mut);font-size:14px}
+.loc{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+select.c{background:var(--chip);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:15px}
+.btn{background:var(--chip);border:1px solid var(--line);border-radius:10px;padding:8px 12px;display:inline-flex;gap:6px;align-items:center;cursor:pointer;font-size:15px}
+.btn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+.feel{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
+.feel:first-of-type{border-top:0}
+.mmi{min-width:50px;height:50px;border-radius:12px;display:grid;place-items:center;font-weight:800;font-size:18px;color:#111;flex:none}
+.prob{padding:12px 0;border-top:1px solid var(--line)}
+.prob:first-of-type{border-top:0;padding-top:4px}
+.prob .h{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.word{font-weight:700;padding:2px 9px;border-radius:8px;font-size:14px;white-space:nowrap}
+.dots{display:flex;gap:5px;margin:8px 0 4px}
+.dots i{width:18px;height:18px;border-radius:50%;background:var(--line)}
+.dots i.f{background:#e8590c}
+.seg{display:inline-flex;background:var(--chip);border-radius:10px;padding:3px;margin-bottom:6px}
+.seg button{border:0;background:transparent;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:14px;color:var(--mut)}
+.seg button.on{background:var(--card);color:var(--ink);font-weight:600}
+.trend{display:flex;align-items:flex-end;gap:3px;height:46px;margin:8px 0 4px}
+.trend b{flex:1;background:var(--acc);opacity:.75;border-radius:3px 3px 0 0}
+.act{display:flex;gap:12px;padding:10px 0;border-top:1px solid var(--line);align-items:flex-start}
+.act:first-of-type{border-top:0}
+.act .ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;flex:none}
+.act b{display:block;font-size:16px}
+.ev{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.ev:first-of-type{border-top:0}
+.ev .w{flex:1;min-width:0}.ev .pl{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.share{width:100%;justify-content:center;margin-top:12px;padding:12px}
+.note{font-size:13px;color:var(--mut)}
+nav.bot{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;z-index:950;padding-bottom:env(safe-area-inset-bottom)}
+nav.bot button{flex:1;border:0;background:none;padding:8px 2px 9px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;color:var(--mut);cursor:pointer}
+nav.bot button.on{color:var(--acc);font-weight:700}
+nav.bot svg.i{width:23px;height:23px}
+@media(min-width:900px){nav.bot{position:sticky;top:56px;bottom:auto;border:0;border-bottom:1px solid var(--line);justify-content:center;gap:10px}nav.bot button{flex:none;flex-direction:row;font-size:14px;padding:12px 16px}}
+#map{height:calc(100vh - 230px);min-height:380px;border-radius:16px;border:1px solid var(--line)}
+.chips{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:20px;padding:6px 12px;font-size:14px;cursor:pointer}
+.chip.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.leg{display:none;margin-top:10px}.leg.on{display:block}
+.legrow{display:grid;grid-template-columns:30px 92px 1fr;align-items:center;gap:10px;padding:5px 0;font-size:14px}
+.legrow i{width:30px;height:18px;border-radius:5px;flex:none;border:1px solid #0001}
+.check{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line);font-size:16px;cursor:pointer}
+.check:first-of-type{border-top:0}
+.check input{width:22px;height:22px;accent-color:var(--acc)}
+.tel{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid var(--line);text-decoration:none;color:inherit}
+.tel:first-of-type{border-top:0}
+.tel b{font-size:22px;color:var(--acc)}
+.pend{background:var(--y);color:var(--yi);border-radius:8px;padding:2px 7px;font-size:12px;font-weight:600}
+.sheet{position:fixed;inset:auto 0 0 0;background:var(--card);border-radius:18px 18px 0 0;box-shadow:0 -6px 30px #0004;padding:18px 16px 28px;z-index:1200;transform:translateY(110%);visibility:hidden;transition:transform .25s,visibility .25s;max-width:640px;margin:auto}
+.sheet.on{transform:none;visibility:visible}
+.sheet .x{position:absolute;right:12px;top:10px}
+.callout{background:var(--b);color:var(--bi);border-radius:12px;padding:12px 14px;font-size:14.5px}
+</style>
+</head>
+<body>
+<div class="proto">PROPUESTA (dummy) · datos reales de USGS de ayer 9-oct 23:46 · no es la app en vivo</div>
+<header>
+  <svg class="i" viewBox="0 0 24 24"><path d="M2 12h3l2-5 3 11 3-14 3 12 2-4h4"/></svg>
+  <div class="t">Sismos Panamá</div>
+  <div class="grow"></div>
+  <button class="upd" id="btnUpd" title="Fuentes y hora de actualización"><span class="dot"></span>Hace 30 s</button>
+  <button class="ib" id="btnTheme" aria-label="Cambiar tema"><svg class="i" id="icoTheme" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+</header>
+<nav class="bot" id="nav">
+  <button data-v="home" class="on"><svg class="i" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Inicio</button>
+  <button data-v="map"><svg class="i" viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Mapa</button>
+  <button data-v="do"><svg class="i" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>Qué hacer</button>
+  <button data-v="tech"><svg class="i" viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/></svg>Análisis</button>
+</nav>
+
+<main>
+<!-- ============ INICIO ============ -->
+<section class="view on" id="v-home">
+ <div class="cols">
+  <div>
+   <div class="card status" id="statusCard">
+     <span class="lvl" id="lvl"></span>
+     <h2 id="stTitle"></h2>
+     <p id="stText"></p>
+     <div class="last" id="stLast"></div>
+   </div>
+
+   <div class="card" style="margin-top:12px">
+     <h3><svg class="i" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-12a7 7 0 1 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>En tu zona</h3>
+     <div class="loc">
+       <select class="c" id="selCity"></select>
+       <button class="btn" id="btnGeo"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Mi ubicación</button>
+     </div>
+     <div id="feel"></div>
+   </div>
+  </div>
+
+  <div>
+   <div class="card">
+     <h3><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Qué esperar</h3>
+     <div class="seg" id="segWin"><button data-w="24" class="on">Próximas 24 h</button><button data-w="168">Próximos 7 días</button></div>
+     <div id="probs"></div>
+     <div class="prob">
+       <div class="h"><span class="big">Ritmo de réplicas</span><span class="word" style="background:var(--g);color:var(--gi)">Bajando</span></div>
+       <div class="trend" id="trend"></div>
+       <div class="mut">5 por hora al inicio → 1 por hora ahora. Que bajen no impide que llegue una fuerte aislada.</div>
+     </div>
+     <p class="note" style="margin:10px 0 0">Son probabilidades, no predicciones: nadie puede decir a qué hora será la próxima réplica.</p>
+   </div>
+
+   <div class="card" style="margin-top:12px">
+     <h3><svg class="i" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>Qué hacer ahora</h3>
+     <div id="actNow"></div>
+     <button class="btn" style="margin-top:8px" data-go="do">Ver guía completa</button>
+   </div>
+  </div>
+ </div>
+
+ <div class="card" style="margin-top:12px">
+   <h3><svg class="i" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Últimos sismos</h3>
+   <div id="lastList"></div>
+   <button class="btn" style="margin-top:8px" data-go="tech">Ver todos y detalles</button>
+ </div>
+ <button class="btn pri share" id="btnShare"><svg class="i" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>Compartir resumen por WhatsApp</button>
+ <p class="note" style="text-align:center;margin-top:12px">Información de USGS y EMSC. No es un sistema oficial de alerta: sigue a SINAPROC y al Instituto de Geociencias.</p>
+</section>
+
+<!-- ============ MAPA ============ -->
+<section class="view" id="v-map">
+  <div class="chips" id="chipsT"><button class="chip on" data-h="24">Últimas 24 h</button><button class="chip" data-h="168">7 días</button></div>
+  <div id="map"></div>
+  <button class="btn" style="margin-top:10px" id="btnLeg"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>¿Qué significan los colores?</button>
+  <div class="card leg" id="leg">
+    <div class="big" style="margin-bottom:6px">Colores del mapa: cuánto se sintió</div>
+    <div id="legRows"></div>
+    <div class="big" style="margin:12px 0 6px">Círculos: cada sismo</div>
+    <div class="mut">Más grande y más rojo = más fuerte. Borde grueso = ocurrió en la última hora. La estrella es el terremoto principal.</div>
+  </div>
+</section>
+
+<!-- ============ QUÉ HACER ============ -->
+<section class="view" id="v-do">
+ <div class="cols">
+  <div>
+   <div class="card">
+     <h3>Durante el sismo</h3>
+     <div class="act"><div class="ic" style="background:var(--r);color:var(--ri)"><svg class="i" viewBox="0 0 24 24"><path d="M3 12h18M6 12v8M18 12v8M5 12l7-6 7 6"/></svg></div><div><b>Agáchate, cúbrete y sujétate</b><span class="mut">Bajo una mesa firme, o junto a una pared interior protegiendo cabeza y cuello.</span></div></div>
+     <div class="act"><div class="ic" style="background:var(--r);color:var(--ri)"><svg class="i" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16M12 4v16"/></svg></div><div><b>Lejos de ventanas y objetos que caigan</b><span class="mut">Estantes, lámparas, espejos. No corras hacia afuera mientras tiembla.</span></div></div>
+     <div class="act"><div class="ic" style="background:var(--r);color:var(--ri)"><svg class="i" viewBox="0 0 24 24"><path d="M12 2v6M8 6l4 4 4-4M5 22h14M7 22V14h10v8"/></svg></div><div><b>Si estás afuera</b><span class="mut">Aléjate de postes, cables, muros y edificios. Si conduces, detente en un lugar abierto.</span></div></div>
+   </div>
+   <div class="card" style="margin-top:12px">
+     <h3>Después del sismo</h3>
+     <div class="act"><div class="ic" style="background:var(--o);color:var(--oi)"><svg class="i" viewBox="0 0 24 24"><path d="M12 21C7 21 4 17 4 13c0-5 8-11 8-11s8 6 8 11c0 4-3 8-8 8z"/></svg></div><div><b>¿Huele a gas?</b><span class="mut">Cierra la llave del tanque, abre ventanas, no enciendas fósforos ni interruptores y sal.</span></div></div>
+     <div class="act"><div class="ic" style="background:var(--o);color:var(--oi)"><svg class="i" viewBox="0 0 24 24"><path d="M3 21h18M5 21V8l7-5 7 5v13"/><path d="m9 13 6 4M15 13l-6 4"/></svg></div><div><b>No entres a edificios con daños</b><span class="mut">Grietas grandes o columnas dañadas: espera a que los revisen. Las réplicas pueden terminar de tumbarlos.</span></div></div>
+     <div class="act"><div class="ic" style="background:var(--o);color:var(--oi)"><svg class="i" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div><b>Usa mensajes, no llamadas</b><span class="mut">Deja libres las líneas para emergencias. Avisa a tu familia que estás bien por WhatsApp.</span></div></div>
+     <div class="act"><div class="ic" style="background:var(--b);color:var(--bi)"><svg class="i" viewBox="0 0 24 24"><path d="M2 18c3 0 3-2 6-2s3 2 6 2 3-2 6-2M2 13c3 0 3-2 6-2s3 2 6 2 3-2 6-2M12 3v5"/></svg></div><div><b>En la costa</b><span class="mut">Si sentiste un sismo tan fuerte que costaba estar de pie, o que duró más de 20 segundos, sube a zona alta o aléjate de la playa sin esperar aviso.</span></div></div>
+   </div>
+  </div>
+  <div>
+   <div class="card">
+     <h3>Prepárate: mochila de emergencia</h3>
+     <div id="kit"></div>
+     <div class="note" style="margin-top:8px" id="kitN"></div>
+   </div>
+   <div class="card" style="margin-top:12px">
+     <h3>Números de emergencia <span class="pend">por validar</span></h3>
+     <a class="tel" href="tel:911"><span>Emergencias</span><b>911</b></a>
+     <a class="tel" href="tel:103"><span>Bomberos</span><b>103</b></a>
+     <a class="tel" href="tel:104"><span>Policía Nacional</span><b>104</b></a>
+     <a class="tel" href="tel:335"><span>Protección Civil (SINAPROC)</span><b>335</b></a>
+   </div>
+  </div>
+ </div>
+</section>
+
+<!-- ============ ANÁLISIS ============ -->
+<section class="view" id="v-tech">
+  <div class="callout">Aquí se conserva todo lo técnico de la versión actual, sin cambios: gráficas de réplicas y ley de Omori, tabla de probabilidades por magnitud, pronóstico oficial USGS, actividad previa, intensidad por ciudad, fórmulas, tabla completa de eventos con filtros y descarga a Excel, y capas del mapa (ShakeMap, reportes ciudadanos, densidad).</div>
+</section>
+</main>
+
+<div class="sheet" id="sheet"><button class="btn x" id="sheetX">Cerrar</button><div id="sheetBody"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+/* --- Valores calculados por la app actual con los datos de USGS del 9-oct 23:46 --- */
+const NOW = 1791607599000;
+const FC = {24: {m5: 0.99, m5n: '1 a 10', m6: 0.45, m7: 0.07, mmain: 0.01}, 168: {m5: 0.999, m5n: '6 a 20', m6: 0.78, m7: 0.16, mmain: 0.04}};
+const RATE = [4, 6, 6, 2, 0, 4, 3, 2, 2, 1, 1];
+const CITIES = [['Ciudad de Panamá', 8.983, -79.519], ['San Miguelito', 9.033, -79.500], ['Colón', 9.359, -79.901], ['La Chorrera', 8.880, -79.783], ['Arraiján', 8.951, -79.660],
+  ['Penonomé', 8.519, -80.357], ['Aguadulce', 8.242, -80.546], ['Santiago', 8.100, -80.983], ['Soná', 8.007, -81.318], ['Chitré', 7.961, -80.430], ['Las Tablas', 7.764, -80.274],
+  ['Tonosí', 7.402, -80.444], ['Pedasí', 7.527, -80.026], ['David', 8.427, -82.431], ['Boquete', 8.780, -82.441], ['Bocas del Toro', 9.340, -82.241], ['Changuinola', 9.430, -82.517], ['Metetí', 8.500, -77.978]];
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+const WORD_MMI = ['', 'No se sintió', 'Muy débil', 'Débil', 'Leve', 'Moderado', 'Fuerte', 'Muy fuerte', 'Severo', 'Violento', 'Extremo'];
+const EFFECT = ['', 'No se siente.', 'Casi nadie lo nota.', 'Se nota en pisos altos, como el paso de un camión.', 'Se siente dentro de casa; vibran ventanas y platos.',
+  'Lo siente casi todo el mundo; se caen objetos pequeños.', 'Asusta; se mueven muebles, caen objetos y aparecen grietas en repellos.',
+  'Cuesta mantenerse de pie; daños en construcciones débiles.', 'Daños considerables en construcciones comunes.', 'Daños graves incluso en estructuras bien construidas.', 'Destrucción generalizada.'];
+const MMI_COL = ['#fff', '#fff', '#bfccff', '#a0e6ff', '#80ffff', '#7aff93', '#ffff00', '#ffc800', '#ff9100', '#ff0000', '#c80000'];
+let EV = [], MAIN = null;
+
+function hav(a, b, c, d) { const r = Math.PI / 180, x = Math.sin((c - a) * r / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin((d - b) * r / 2) ** 2; return 12742 * Math.asin(Math.sqrt(x)); }
+function mmi(M, lat, lon, la, lo, dep) { const d = hav(lat, lon, la, lo), rh = Math.sqrt(d * d + dep * dep), R = Math.sqrt(rh * rh + 196), lR = Math.log10(R), B = Math.max(0, Math.log10(R / 30)), x = M - 6;
+  return Math.max(1, Math.min(10, 12.27 + 2.27 * x + 0.1304 * x * x - 1.3 * lR - 0.000707 * R + 1.95 * B - 0.577 * M * lR)); }
+function magCol(m) { return m >= 7 ? '#8b0000' : m >= 6 ? '#d7301f' : m >= 5 ? '#f46d43' : m >= 4.5 ? '#f08c2e' : '#c9a227'; }
+function ago(t) { const m = Math.round((NOW - t) / 60000); if (m < 60) return 'hace ' + m + ' min'; const h = Math.floor(m / 60); return 'hace ' + h + ' h' + (m % 60 ? ' ' + (m % 60) + ' min' : ''); }
+function hora(t) { return new Date(t).toLocaleTimeString('es-PA', {timeZone: 'America/Panama', hour: '2-digit', minute: '2-digit', hour12: false}); }
+function lugar(s) { return s.replace(/(\d+) km (\w+) of /, (m, k, d) => k + ' km al ' + d.replace(/W/g, 'O') + ' de ').replace(', Panama', ''); }
+function word(p) { const k = Math.round(p * 10); if (p >= 0.1 && p < 0.9) return k >= 5 ? ['Probable', 'o'] : ['Posible', 'y']; return p >= 0.9 ? ['Casi seguro', 'r'] : p >= 0.5 ? ['Probable', 'o'] : p >= 0.1 ? ['Posible', 'y'] : p >= 0.01 ? ['Poco probable', 'g'] : ['Muy poco probable', 'g']; }
+function frac(p) { if (p >= 0.995) return 'más de 99 de cada 100'; if (p >= 0.1) return Math.round(p * 10) + ' de cada 10'; if (p >= 0.01) return Math.round(p * 100) + ' de cada 100'; return 'menos de 1 de cada 100'; }
+
+/* --- Estado general --- */
+function renderStatus() {
+  const p6 = FC[24].m6; const last = EV[EV.length - 1]; const strong = EV.filter(e => e.mag >= 6 && NOW - e.t < 2 * 36e5).length;
+  const L = strong || p6 >= 0.5 ? ['Actividad alta', 'r'] : p6 >= 0.1 ? ['Actividad elevada', 'y'] : ['Actividad baja', 'g'];
+  $('statusCard').style.background = 'var(--' + L[1] + ')'; $('statusCard').style.color = 'var(--' + L[1] + 'i)';
+  $('lvl').innerHTML = '<svg class="i" viewBox="0 0 24 24"><path d="M2 12h3l2-5 3 11 3-14 3 12 2-4h4"/></svg>' + L[0];
+  $('stTitle').textContent = 'Réplicas del terremoto de Azuero';
+  $('stText').innerHTML = 'El terremoto <b>M ' + MAIN.mag.toFixed(1) + '</b> fue hoy a las ' + hora(MAIN.t) + '. Las réplicas siguen y <b>van bajando</b>, pero todavía pueden ocurrir algunas fuertes.';
+  $('stLast').innerHTML = '<span class="mag" style="background:' + magCol(last.mag) + '">' + last.mag.toFixed(1) + '</span><div><div class="big">Último sismo: ' + ago(last.t) + '</div><div>' + lugar(last.place) + ' · ' + hora(last.t) + '</div></div>';
+}
+/* --- En tu zona --- */
+function renderFeel() {
+  const [n, la, lo] = CITIES[+$('selCity').value]; const d = Math.round(hav(MAIN.lat, MAIN.lon, la, lo));
+  const vMain = mmi(MAIN.mag, MAIN.lat, MAIN.lon, la, lo, MAIN.depth);
+  // réplica fuerte típica: M6 en la zona de réplicas más cercana a la ciudad
+  let near = EV[0], dm = 1e9; for (const e of EV) if (e.t > MAIN.t) { const x = hav(e.lat, e.lon, la, lo); if (x < dm) { dm = x; near = e; } }
+  const v6 = mmi(6.0, near.lat, near.lon, la, lo, 10), v5 = mmi(5.0, near.lat, near.lon, la, lo, 10);
+  const row = (t, v) => { const r = Math.round(v); return '<div class="feel"><div class="mmi" style="background:' + MMI_COL[r] + '">' + ROMAN[r] + '</div><div><div class="mut">' + t + '</div><div class="big">' + WORD_MMI[r] + '</div><div>' + EFFECT[r] + '</div></div></div>'; };
+  $('feel').innerHTML = '<div class="mut" style="margin-bottom:4px">' + n + ' está a ' + d + ' km del epicentro.</div>' +
+    row('El terremoto de hoy se sintió', vMain) + row('Una réplica fuerte (M6) se sentiría', v6) + row('Una réplica moderada (M5) se sentiría', v5);
+  try { localStorage.setItem('sp_city', $('selCity').value); } catch (e) {}
+}
+/* --- Qué esperar --- */
+let WIN = 24;
+function renderProbs() {
+  const f = FC[WIN]; const items = [
+    ['Réplicas moderadas (M5 o más)', 'Se sienten claramente en Azuero y Veraguas.', f.m5, 'Se esperan ' + f.m5n + '.'],
+    ['Una réplica fuerte (M6 o más)', 'Como las de las 15:25 y 23:14.', f.m6, null],
+    ['Un sismo mayor que el de hoy (M7.7)', 'Es raro, pero no imposible.', f.mmain, null]];
+  $('probs').innerHTML = items.map(([t, s, p, extra]) => {
+    const [w, c] = word(p); const k = Math.round(p * 10);
+    return '<div class="prob"><div class="h"><span class="big">' + t + '</span><span class="word" style="background:var(--' + c + ');color:var(--' + c + 'i)">' + w + '</span></div>' +
+      '<div class="mut">' + s + '</div>' + (extra ? '<div style="margin-top:4px">' + extra + '</div>' :
+      '<div class="dots">' + Array.from({length: 10}, (_, i) => '<i class="' + (i < k ? 'f' : '') + '"></i>').join('') + '</div><div>' + frac(p) + '</div>') + '</div>';
+  }).join('');
+}
+function renderTrend() { const mx = Math.max(...RATE); $('trend').innerHTML = RATE.map(v => '<b style="height:' + Math.max(4, v / mx * 100) + '%" title="' + v + ' réplicas"></b>').join(''); }
+/* --- Acciones según nivel --- */
+function renderActNow() {
+  const A = [
+    ['b', '<path d="M6 7h12l-1 13H7z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/>', 'Ten lista tu mochila', 'Agua, linterna, cargador, medicinas y documentos.'],
+    ['y', '<path d="M3 21h18M5 21V8l7-5 7 5v13M10 21v-6h4v6"/>', 'Identifica tu lugar seguro', 'En cada cuarto: mesa firme o pared interior, lejos de ventanas.'],
+    ['p', '<path d="M2 18c3 0 3-2 6-2s3 2 6 2 3-2 6-2M12 3v9"/>', 'Si estás en la costa', 'Sismo fuerte o de más de 20 s: sube a zona alta sin esperar aviso.']];
+  $('actNow').innerHTML = A.map(([c, ic, t, s]) => '<div class="act"><div class="ic" style="background:var(--' + c + ');color:var(--' + c + 'i)"><svg class="i" viewBox="0 0 24 24">' + ic + '</svg></div><div><b>' + t + '</b><span class="mut">' + s + '</span></div></div>').join('');
+}
+/* --- Últimos sismos --- */
+function renderList() {
+  const [n, la, lo] = CITIES[+$('selCity').value];
+  $('lastList').innerHTML = EV.slice(-6).reverse().map(e => { const r = Math.round(mmi(e.mag, e.lat, e.lon, la, lo, e.depth));
+    return '<div class="ev"><span class="mag s" style="background:' + magCol(e.mag) + '">' + e.mag.toFixed(1) + '</span><div class="w"><div class="pl">' + lugar(e.place) + '</div><div class="mut">' + ago(e.t) + ' · en ' + n + ': ' + WORD_MMI[r].toLowerCase() + '</div></div></div>'; }).join('');
+}
+/* --- Mochila (se guarda en el teléfono) --- */
+const KIT = ['Agua (4 litros por persona por día)', 'Linterna y pilas', 'Cargador portátil cargado', 'Botiquín y medicinas de uso diario', 'Copia de cédulas y documentos', 'Comida que no se dañe', 'Silbato', 'Algo de efectivo'];
+function renderKit() {
+  let s = {}; try { s = JSON.parse(localStorage.getItem('sp_kit') || '{}'); } catch (e) {}
+  $('kit').innerHTML = KIT.map((k, i) => '<label class="check"><input type="checkbox" data-k="' + i + '"' + (s[i] ? ' checked' : '') + '>' + k + '</label>').join('');
+  const n = Object.values(s).filter(Boolean).length; $('kitN').textContent = n + ' de ' + KIT.length + ' listos';
+  $('kit').onchange = ev => { s[ev.target.dataset.k] = ev.target.checked; try { localStorage.setItem('sp_kit', JSON.stringify(s)); } catch (e) {} renderKit(); };
+}
+/* --- Mapa simplificado --- */
+let map, lay, hrs = 24;
+function initMap() {
+  if (map) { map.invalidateSize(); return; }
+  map = L.map('map').setView([8.1, -80.5], 7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 17, attribution: '© OpenStreetMap'}).addTo(map);
+  // intensidad estimada del terremoto principal y réplicas M5+, en baja resolución
+  const g = {la0: 6.9, la1: 9.8, lo0: -83.2, lo1: -77.1, s: 0.05}; const nx = Math.round((g.lo1 - g.lo0) / g.s), ny = Math.round((g.la1 - g.la0) / g.s);
+  const cv = document.createElement('canvas'); cv.width = nx; cv.height = ny; const cx = cv.getContext('2d'); const im = cx.createImageData(nx, ny);
+  const src = EV.filter(e => e.mag >= 5);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const la = g.la1 - (j + .5) * g.s, lo = g.lo0 + (i + .5) * g.s; let v = 1; for (const e of src) v = Math.max(v, mmi(e.mag, e.lat, e.lon, la, lo, e.depth));
+    const r = Math.round(v), k = (j * nx + i) * 4; if (r < 3) continue; const c = MMI_COL[r].match(/\w\w/g).map(h => parseInt(h, 16)); im.data[k] = c[0]; im.data[k + 1] = c[1]; im.data[k + 2] = c[2]; im.data[k + 3] = 120; }
+  cx.putImageData(im, 0, 0); L.imageOverlay(cv.toDataURL(), [[g.la0, g.lo0], [g.la1, g.lo1]], {opacity: .7}).addTo(map);
+  lay = L.layerGroup().addTo(map); drawEv();
+  $('legRows').innerHTML = [8, 7, 6, 5, 4, 3].map(r => '<div class="legrow"><i style="background:' + MMI_COL[r] + '"></i><b>' + WORD_MMI[r] + '</b><span class="mut">' + EFFECT[r] + '</span></div>').join('');
+}
+function drawEv() {
+  lay.clearLayers();
+  for (const e of EV.filter(e => NOW - e.t <= hrs * 36e5)) {
+    const isM = e === MAIN; const m = isM ? L.marker([e.lat, e.lon], {icon: L.divIcon({className: '', html: '<svg width="30" height="30" viewBox="0 0 24 24"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7L12 17.3 5.8 20.9l1.6-7L2 9.2l7.1-.6z" fill="#8b0000" stroke="#fff" stroke-width="1.3"/></svg>', iconSize: [30, 30], iconAnchor: [15, 15]})})
+      : L.circleMarker([e.lat, e.lon], {radius: Math.max(4, 2.5 * Math.pow(1.7, e.mag - 3)), color: NOW - e.t < 36e5 ? '#000' : '#fff', weight: NOW - e.t < 36e5 ? 2.5 : 1, fillColor: magCol(e.mag), fillOpacity: .85});
+    m.on('click', () => openSheet(e)); m.addTo(lay);
+  }
+}
+function openSheet(e) {
+  const rows = CITIES.slice(0, 1).concat([CITIES[+$('selCity').value]]).filter((c, i, a) => a.indexOf(c) === i).map(([n, la, lo]) => { const r = Math.round(mmi(e.mag, e.lat, e.lon, la, lo, e.depth)); return '<div class="feel"><div class="mmi" style="background:' + MMI_COL[r] + '">' + ROMAN[r] + '</div><div><div class="mut">En ' + n + '</div><div class="big">' + WORD_MMI[r] + '</div></div></div>'; }).join('');
+  $('sheetBody').innerHTML = '<div style="display:flex;gap:12px;align-items:center;margin-bottom:8px"><span class="mag" style="background:' + magCol(e.mag) + '">' + e.mag.toFixed(1) + '</span><div><div class="big">' + lugar(e.place) + '</div><div class="mut">' + hora(e.t) + ' · ' + ago(e.t) + ' · ' + Math.round(e.depth) + ' km de profundidad</div></div></div>' + rows;
+  $('sheet').classList.add('on');
+}
+/* --- Compartir --- */
+function share() {
+  const last = EV[EV.length - 1]; const f = FC[24];
+  const txt = 'Sismos Panamá (' + hora(NOW) + '): réplicas del terremoto M' + MAIN.mag.toFixed(1) + ' de Azuero van bajando. Último: M' + last.mag.toFixed(1) + ' ' + ago(last.t) + ', ' + lugar(last.place) +
+    '. Próximas 24 h: réplica fuerte (M6+) ' + word(f.m6)[0].toLowerCase() + ' (' + frac(f.m6) + '). Ten lista tu mochila. ' + location.href.replace('/dummy/', '/');
+  if (navigator.share) navigator.share({text: txt}).catch(() => {}); else window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
+}
+/* --- Navegación y arranque --- */
+function go(v) { document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); document.querySelectorAll('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v)); if (v === 'map') setTimeout(initMap, 50); scrollTo(0, 0); }
+$('nav').onclick = e => { const b = e.target.closest('button'); if (b) go(b.dataset.v); };
+document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go));
+$('segWin').onclick = e => { const b = e.target.closest('button'); if (!b) return; WIN = +b.dataset.w; document.querySelectorAll('#segWin button').forEach(x => x.classList.toggle('on', x === b)); renderProbs(); };
+$('chipsT').onclick = e => { const b = e.target.closest('button'); if (!b) return; hrs = +b.dataset.h; document.querySelectorAll('#chipsT .chip').forEach(x => x.classList.toggle('on', x === b)); drawEv(); };
+$('btnLeg').onclick = () => $('leg').classList.toggle('on');
+$('sheetX').onclick = () => $('sheet').classList.remove('on');
+$('btnShare').onclick = share;
+$('btnUpd').onclick = () => { $('sheetBody').innerHTML = '<div class="big" style="margin-bottom:8px">Fuentes de datos</div><div class="feel"><span class="dot" style="margin-top:7px"></span><div><b>USGS</b> · consultado 23:46 · último sismo 23:14</div></div><div class="feel"><span class="dot" style="margin-top:7px"></span><div><b>EMSC</b> · en vivo · último sismo 23:30</div></div><div class="note">Se actualiza solo cada minuto. App versión 1.2.0.</div>'; $('sheet').classList.add('on'); };
+$('btnGeo').onclick = () => { if (!navigator.geolocation) return; navigator.geolocation.getCurrentPosition(p => { let bi = 0, bd = 1e9; CITIES.forEach(([n, la, lo], i) => { const d = hav(la, lo, p.coords.latitude, p.coords.longitude); if (d < bd) { bd = d; bi = i; } }); $('selCity').value = bi; renderFeel(); renderList(); }); };
+$('selCity').innerHTML = CITIES.map((c, i) => '<option value="' + i + '">' + c[0] + '</option>').join('');
+try { const c = localStorage.getItem('sp_city'); if (c) $('selCity').value = c; } catch (e) {}
+$('selCity').onchange = () => { renderFeel(); renderList(); };
+const MOON = '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>', SUN = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
+const dark = () => document.documentElement.dataset.theme ? document.documentElement.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+$('btnTheme').onclick = () => { document.documentElement.dataset.theme = dark() ? 'light' : 'dark'; $('icoTheme').innerHTML = dark() ? SUN : MOON; };
+$('icoTheme').innerHTML = dark() ? SUN : MOON;
+
+fetch('../data/snapshot.json').then(r => r.json()).then(fc => {
+  EV = fc.features.map(f => ({t: f.properties.time, mag: f.properties.mag, place: f.properties.place, lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], depth: f.geometry.coordinates[2]})).sort((a, b) => a.t - b.t);
+  MAIN = EV.reduce((a, e) => e.mag > a.mag ? e : a);
+  renderStatus(); renderFeel(); renderProbs(); renderTrend(); renderActNow(); renderList(); renderKit();
+});
+</script>
+</body>
+</html>
