@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Monitor Sísmico Panamá</title>
+<meta name="description" content="Sismos y réplicas en Panamá en tiempo casi real (USGS ComCat), intensidad estimada por ciudad y pronóstico probabilístico de réplicas.">
+<meta name="theme-color" content="#0b2f5b">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon.ico">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3f5f8;--panel:#ffffff;--ink:#16202c;--muted:#5b6878;--line:#dde3ea;--head:#0b2f5b;--head2:#123f75;
+  --accent:#1f5fae;--chip:#eef2f7;
+  --k1:#dbe9fb;--k1i:#123f75;--k2:#fde2e1;--k2i:#8a1c1c;--k3:#fff1cc;--k3i:#7a5300;--k4:#dcf5e6;--k4i:#16603a;--k5:#ece3fb;--k5i:#4b2a86;--k6:#e2f3f7;--k6i:#0d5866;
+  --shadow:0 1px 2px rgba(16,32,52,.06),0 2px 8px rgba(16,32,52,.05);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f151d;--panel:#18212c;--ink:#e6ebf1;--muted:#9aa7b6;--line:#2a3644;--head:#0a2240;--head2:#0f2f57;--accent:#6aa5f0;--chip:#223040;
+  --k1:#1d3352;--k1i:#bcd7fb;--k2:#4a2526;--k2i:#ffc9c6;--k3:#4a3b16;--k3i:#ffe3a0;--k4:#1d3d2c;--k4i:#b6efcd;--k5:#33284c;--k5i:#dccdfb;--k6:#173d45;--k6i:#bde9f2;
+  --shadow:none;}}
+:root[data-theme="dark"]{
+  --bg:#0f151d;--panel:#18212c;--ink:#e6ebf1;--muted:#9aa7b6;--line:#2a3644;--head:#0a2240;--head2:#0f2f57;--accent:#6aa5f0;--chip:#223040;
+  --k1:#1d3352;--k1i:#bcd7fb;--k2:#4a2526;--k2i:#ffc9c6;--k3:#4a3b16;--k3i:#ffe3a0;--k4:#1d3d2c;--k4i:#b6efcd;--k5:#33284c;--k5i:#dccdfb;--k6:#173d45;--k6i:#bde9f2;
+  --shadow:none;}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+button,select,input{font:inherit;color:inherit}
+header{background:linear-gradient(90deg,var(--head),var(--head2));color:#fff;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:1000}
+header .logo{width:34px;height:34px;border-radius:7px;background:#fff1;display:grid;place-items:center}
+header h1{font-size:17px;margin:0;font-weight:700;letter-spacing:.2px}
+header .sub{font-size:12px;opacity:.8}
+header .grow{flex:1}
+.stamp{font-size:11.5px;text-align:right;opacity:.92;line-height:1.35}
+.stamp b{font-weight:600}
+.hbtn{background:#ffffff1a;border:1px solid #ffffff33;color:#fff;border-radius:8px;height:32px;padding:0 10px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12.5px}
+.hbtn:hover{background:#ffffff2a}
+.hbtn svg{width:16px;height:16px}
+.live{display:inline-flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:#55d68a;box-shadow:0 0 0 0 #55d68a99;animation:pulse 2s infinite}
+.dot.off{background:#f0a35a;animation:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 #55d68a99}70%{box-shadow:0 0 0 7px #55d68a00}100%{box-shadow:0 0 0 0 #55d68a00}}
+main{padding:12px 16px 40px;max-width:1600px;margin:0 auto}
+.banner{background:var(--k3);color:var(--k3i);border-radius:10px;padding:8px 12px;font-size:12.5px;margin-bottom:10px}
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.kpi{border-radius:10px;padding:8px 11px;min-height:66px}
+.kpi .l{font-size:11px;text-transform:uppercase;letter-spacing:.4px;font-weight:600;opacity:.85}
+.kpi .v{font-size:21px;font-weight:700;line-height:1.15;margin-top:2px;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:11.5px;opacity:.85}
+.c1{background:var(--k1);color:var(--k1i)}.c2{background:var(--k2);color:var(--k2i)}.c3{background:var(--k3);color:var(--k3i)}.c4{background:var(--k4);color:var(--k4i)}.c5{background:var(--k5);color:var(--k5i)}.c6{background:var(--k6);color:var(--k6i)}
+.grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+.card h2{font-size:14px;margin:0;font-weight:650}
+.chead{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.chead .grow{flex:1}
+#map{height:560px;border-radius:0 0 12px 12px}
+.seg{display:inline-flex;background:var(--chip);border-radius:8px;padding:2px}
+.seg button{border:0;background:transparent;padding:4px 9px;border-radius:6px;cursor:pointer;font-size:12px;color:var(--muted)}
+.seg button.on{background:var(--panel);color:var(--ink);font-weight:600;box-shadow:var(--shadow)}
+select.sel{background:var(--chip);border:1px solid var(--line);border-radius:7px;padding:4px 6px;font-size:12px}
+.tabs{display:flex;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{border:0;background:transparent;padding:8px 10px;cursor:pointer;font-size:12.8px;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button.on{color:var(--ink);font-weight:600;border-bottom-color:var(--accent)}
+.tabp{display:none;padding:10px 12px;max-height:600px;overflow:auto}
+.tabp.on{display:block}
+.note{font-size:12.5px;color:var(--muted)}
+.lead{font-size:13.2px;margin:4px 0 10px}
+.lead b{font-weight:650}
+.chartbox{position:relative;height:210px;margin:6px 0 14px}
+.chartbox.sm{height:180px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-weight:600;color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;position:sticky;top:0;background:var(--panel);cursor:pointer;user-select:none}
+th .ar{opacity:.4;margin-left:3px}
+th.sorted .ar{opacity:1;color:var(--accent)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr:hover td{background:var(--chip)}
+.mag{display:inline-block;min-width:36px;text-align:center;border-radius:6px;padding:1px 6px;font-weight:700;font-variant-numeric:tabular-nums}
+.mmi{display:inline-block;min-width:34px;text-align:center;border-radius:6px;padding:1px 6px;font-weight:600;color:#111}
+.ptab td.p{font-weight:700}
+.prob{display:inline-block;border-radius:6px;padding:1px 7px;font-weight:700;min-width:52px;text-align:center}
+.pl{background:var(--k4);color:var(--k4i)}.pm{background:var(--k3);color:var(--k3i)}.ph{background:var(--k2);color:var(--k2i)}
+.filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.filters input[type=search]{background:var(--chip);border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:12.5px;min-width:180px}
+.btn{background:var(--chip);border:1px solid var(--line);border-radius:7px;padding:5px 10px;font-size:12.5px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.btn:hover{border-color:var(--accent)}
+.btn svg{width:15px;height:15px}
+.tablewrap{max-height:420px;overflow:auto}
+.legend{background:var(--panel);color:var(--ink);padding:7px 9px;border-radius:8px;font-size:11px;line-height:1.3;box-shadow:0 1px 6px #0003;border:1px solid var(--line)}
+.legend .row{display:flex;align-items:center;gap:5px;margin:1px 0}
+.legend i{display:inline-block;width:14px;height:10px;border-radius:2px}
+.leaflet-popup-content{font:12.5px/1.4 Inter,system-ui,sans-serif}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#16202c;color:#fff;padding:10px 14px;border-radius:10px;font-size:13px;z-index:3000;box-shadow:0 4px 18px #0005;opacity:0;transition:opacity .25s;pointer-events:none;max-width:92vw}
+.toast.on{opacity:1}
+.math{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;background:var(--chip);border-radius:8px;padding:8px 10px;margin:6px 0 10px;white-space:pre-wrap;line-height:1.5}
+details{margin:6px 0 10px}
+details summary{cursor:pointer;font-weight:600;font-size:12.8px}
+.src a{color:var(--accent)}
+.tour-hl{outline:3px solid #f5b400 !important;outline-offset:3px;border-radius:10px;position:relative;z-index:2500}
+.tourbox{position:fixed;z-index:2600;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:0 8px 30px #0006;max-width:340px;font-size:13px}
+.tourbox .nav{display:flex;justify-content:space-between;margin-top:10px;gap:6px}
+footer{max-width:1600px;margin:0 auto;padding:0 16px 30px;font-size:11.5px;color:var(--muted)}
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.grid{grid-template-columns:1fr}#map{height:460px}}
+@media (max-width:560px){.legend{font-size:10px;max-height:130px;overflow:auto;padding:5px 7px}.hbtn .tl{display:none}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}main{padding:10px 10px 30px}header{padding:8px 10px}.stamp{text-align:left;width:100%}#map{height:400px}.kpi .v{font-size:18px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h3l2-5 3 11 3-14 3 12 2-4h4"/></svg></div>
+  <div><h1>Monitor Sísmico Panamá</h1><div class="sub">Sismos, réplicas, intensidad estimada y pronóstico probabilístico</div></div>
+  <div class="grow"></div>
+  <button class="hbtn" id="btnAlert" title="Alertas en este dispositivo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span id="alertLbl">Activar alertas</span></button>
+  <button class="hbtn" id="btnTour" title="Ver tutorial guiado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/></svg><span class="tl">Ver tutorial guiado</span></button>
+  <button class="hbtn" id="btnRefresh" title="Actualizar ahora"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8M21 3v5h-5"/></svg></button>
+  <button class="hbtn" id="btnTheme" title="Cambiar tema" aria-label="Cambiar tema"><svg id="icoTheme" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+  <div class="stamp"><span class="live"><span class="dot" id="liveDot"></span><b id="liveTxt">Conectando…</b></span><br>Fuente: USGS ComCat · <span id="stampTime">—</span><br><span id="nextRef"></span></div>
+</header>
+
+<main>
+  <div class="banner" id="banner">Herramienta de análisis, no es un sistema oficial de alerta temprana. Ante un sismo sigue las indicaciones de SINAPROC y del Instituto de Geociencias (IGC) de la Universidad de Panamá. Los pronósticos son probabilidades estadísticas, no predicciones.</div>
+
+  <section class="kpis" id="kpis">
+    <div class="kpi c2"><div class="l">Sismo principal</div><div class="v" id="kMain">—</div><div class="s" id="kMainS">—</div></div>
+    <div class="kpi c1"><div class="l">Réplicas M≥4.5</div><div class="v" id="kAft">—</div><div class="s" id="kAftS">—</div></div>
+    <div class="kpi c5"><div class="l">Mayor réplica</div><div class="v" id="kBig">—</div><div class="s" id="kBigS">—</div></div>
+    <div class="kpi c6"><div class="l">Tasa actual M≥4.5</div><div class="v" id="kRate">—</div><div class="s" id="kRateS">—</div></div>
+    <div class="kpi c3"><div class="l">Prob. M≥6 próx. 24 h</div><div class="v" id="kP6">—</div><div class="s" id="kP6S">—</div></div>
+    <div class="kpi c4"><div class="l">Intensidad est. Cd. Panamá</div><div class="v" id="kPty">—</div><div class="s" id="kPtyS">—</div></div>
+  </section>
+
+  <section class="grid">
+    <div class="card" id="cardMap">
+      <div class="chead">
+        <h2>Mapa</h2><div class="grow"></div>
+        <span class="note">Capa</span>
+        <div class="seg" id="segLayer">
+          <button data-l="mmi" class="on" title="Intensidad máxima estimada por todos los sismos">Intensidad estimada</button>
+          <button data-l="main" title="Solo el sismo principal">Solo principal</button>
+          <button data-l="dens" title="Densidad de epicentros">Densidad</button>
+          <button data-l="none">Ninguna</button>
+        </div>
+        <select class="sel" id="selDays" title="Ventana de datos">
+          <option value="1">Último día</option><option value="3">3 días</option><option value="7" selected>7 días</option><option value="30">30 días</option><option value="90">90 días</option>
+        </select>
+      </div>
+      <div id="map"></div>
+    </div>
+
+    <div class="card" id="cardPanel">
+      <div class="tabs" id="tabs">
+        <button data-t="seq" class="on">Réplicas</button>
+        <button data-t="fc">Qué esperar</button>
+        <button data-t="pre">Antes del sismo</button>
+        <button data-t="cities">Ciudades</button>
+        <button data-t="method">Cómo se calcula</button>
+      </div>
+      <div class="tabp on" id="t-seq">
+        <p class="lead" id="seqLead">Cargando secuencia…</p>
+        <div class="note">Magnitud de cada evento vs. horas desde el sismo principal</div>
+        <div class="chartbox"><canvas id="chMT"></canvas></div>
+        <div class="note">Réplicas M≥<span class="mcLbl">4.5</span> por hora: observado (barras) vs. ley de Omori ajustada (línea)</div>
+        <div class="chartbox"><canvas id="chRate"></canvas></div>
+        <div class="note">Frecuencia acumulada por magnitud (Gutenberg-Richter)</div>
+        <div class="chartbox sm"><canvas id="chGR"></canvas></div>
+      </div>
+      <div class="tabp" id="t-fc">
+        <p class="lead" id="fcLead">—</p>
+        <table class="ptab" id="fcTable"></table>
+        <p class="note" id="fcNote"></p>
+        <div id="oafBox"></div>
+        <div class="note" style="margin-top:8px">Número acumulado de réplicas M≥<span class="mcLbl">4.5</span>: observado vs. modelo, con proyección</div>
+        <div class="chartbox"><canvas id="chCum"></canvas></div>
+      </div>
+      <div class="tabp" id="t-pre">
+        <p class="lead" id="preLead">—</p>
+        <div class="note">Sismos M≥2.5 a menos de 200 km del epicentro en los 60 días previos</div>
+        <div class="chartbox"><canvas id="chPre"></canvas></div>
+        <p class="note" id="preNote"></p>
+      </div>
+      <div class="tabp" id="t-cities">
+        <p class="lead">Intensidad Mercalli Modificada (MMI) estimada en cada ciudad con la ecuación de Atkinson y Wald (2007), tomando la distancia hipocentral a cada sismo. Es una estimación: el suelo local (rellenos, suelos blandos) puede amplificar la sacudida.</p>
+        <table id="cityTable"></table>
+      </div>
+      <div class="tabp" id="t-method">
+        <div id="methodBox"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:10px" id="cardTable">
+    <div class="chead">
+      <h2>Eventos</h2><span class="note" id="tblCount"></span><div class="grow"></div>
+      <div class="filters">
+        <input type="search" id="fText" placeholder="Buscar lugar…">
+        <select class="sel" id="fMag"><option value="0">Toda magnitud</option><option value="4">M≥4</option><option value="4.5">M≥4.5</option><option value="5">M≥5</option><option value="6">M≥6</option></select>
+        <select class="sel" id="fScope"><option value="all">Toda la región</option><option value="seq">Solo secuencia</option></select>
+        <button class="btn" id="btnClear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>Limpiar filtros</button>
+        <button class="btn" id="btnXlsF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 19h16"/></svg>Excel (vista)</button>
+        <button class="btn" id="btnXlsA"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 19h16"/></svg>Excel (completo)</button>
+      </div>
+    </div>
+    <div class="tablewrap"><table id="evTable"></table></div>
+  </section>
+</main>
+<footer class="src">
+  Datos: <a href="https://earthquake.usgs.gov/fdsnws/event/1/" target="_blank" rel="noopener">USGS ComCat (FDSN Event API)</a>, ShakeMap, DYFI y Aftershock Forecast cuando USGS los publica.
+  Referencias: Reasenberg &amp; Jones (1989) Science 243; Utsu, Ogata &amp; Matsu'ura (1995) J. Phys. Earth 43; Båth (1965) Tectonophysics 2; Aki (1965); Atkinson &amp; Wald (2007) SRL 78; Page et al. (2016) BSSA 106; Michael et al. (2020) SRL 91.
+  Mapa base © colaboradores de OpenStreetMap. Horas en hora de Panamá (UTC−5).
+</footer>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+'use strict';
+/* ============================================================
+   Monitor Sísmico Panamá — lógica
+   ============================================================ */
+const CFG = {
+  bbox: {minlatitude: 5, maxlatitude: 11, minlongitude: -84.5, maxlongitude: -76},
+  fdsn: 'https://earthquake.usgs.gov/fdsnws/event/1/query',
+  feedDay: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson',
+  refreshSec: 60,
+  mc: 4.5,           // magnitud de completitud asumida para la red global en esta zona
+  mainMin: 6.0,      // umbral para tratar un evento como sismo principal de una secuencia
+  grid: {lat0: 6.9, lat1: 9.8, lon0: -83.2, lon1: -77.1, step: 0.04},
+  generic: {a: -1.67, b: 0.91, p: 1.08, c: 0.05}, // Reasenberg & Jones (1989), valores genéricos
+  prior: {c: 0.018, p0: 1.0, sp: 0.1, b0: 1.0, nb: 50, tmin: 0.02} // c y b genéricos (Page et al. 2016); peso del prior de b = 50 eventos
+};
+const CITIES = [
+  ['Ciudad de Panamá', 8.983, -79.519], ['Colón', 9.359, -79.901], ['La Chorrera', 8.880, -79.783],
+  ['Penonomé', 8.519, -80.357], ['Aguadulce', 8.242, -80.546], ['Santiago', 8.100, -80.983],
+  ['Chitré', 7.961, -80.430], ['Las Tablas', 7.764, -80.274], ['Tonosí', 7.402, -80.444],
+  ['Pedasí', 7.527, -80.026], ['Soná', 8.007, -81.318], ['David', 8.427, -82.431],
+  ['Bocas del Toro', 9.340, -82.241], ['Changuinola', 9.430, -82.517], ['Metetí', 8.500, -77.978]
+];
+const MMI_COL = [[1,'#ffffff'],[2,'#bfccff'],[3,'#a0e6ff'],[4,'#80ffff'],[5,'#7aff93'],[6,'#ffff00'],[7,'#ffc800'],[8,'#ff9100'],[9,'#ff0000'],[10,'#c80000']];
+const MMI_TXT = ['','No sentido','Débil','Débil','Leve','Moderado','Fuerte','Muy fuerte','Severo','Violento','Extremo'];
+const ROMAN = ['','I','II','III','IV','V','VI','VII','VIII','IX','X'];
+
+const S = {events: [], main: null, seq: [], pre: [], fit: null, detail: null, oaf: null, shake: null,
+           days: 7, layer: 'mmi', lastIds: new Set(), first: true, sortKey: 't', sortDir: -1, source: '', generated: null, charts: {}};
+
+/* ---------- utilidades ---------- */
+const $ = id => document.getElementById(id);
+const fmtT = (t, opt) => new Date(t).toLocaleString('es-PA', Object.assign({timeZone: 'America/Panama', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false}, opt || {}));
+const fmtH = t => new Date(t).toLocaleTimeString('es-PA', {timeZone: 'America/Panama', hour: '2-digit', minute: '2-digit', hour12: false});
+const pct = p => p >= 0.995 ? '>99 %' : p < 0.005 ? '<1 %' : Math.round(p * 100) + ' %';
+function toast(msg, ms) { const el = $('toast'); el.textContent = msg; el.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('on'), ms || 3500); }
+function haversine(la1, lo1, la2, lo2) { const R = 6371, r = Math.PI / 180; const dLa = (la2 - la1) * r, dLo = (lo2 - lo1) * r; const a = Math.sin(dLa / 2) ** 2 + Math.cos(la1 * r) * Math.cos(la2 * r) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(a)); }
+function magColor(m) { return m >= 7 ? '#8b0000' : m >= 6 ? '#d7301f' : m >= 5 ? '#f46d43' : m >= 4.5 ? '#fdae61' : m >= 4 ? '#fee08b' : '#d9ef8b'; }
+function magInk(m) { return m >= 5 ? '#fff' : '#222'; }
+function mmiColor(v) { if (v <= 1) return MMI_COL[0][1]; if (v >= 10) return MMI_COL[9][1]; const i = Math.floor(v) - 1; const f = v - Math.floor(v); return lerpHex(MMI_COL[i][1], MMI_COL[Math.min(i + 1, 9)][1], f); }
+function lerpHex(a, b, f) { const pa = [1, 3, 5].map(i => parseInt(a.substr(i, 2), 16)), pb = [1, 3, 5].map(i => parseInt(b.substr(i, 2), 16)); return 'rgb(' + pa.map((x, i) => Math.round(x + (pb[i] - x) * f)).join(',') + ')'; }
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function poissonQ(lam, q) { // cuantil de Poisson
+  if (lam <= 0) return 0; let k = 0, p = Math.exp(-lam), c = p; while (c < q && k < 10000) { k++; p *= lam / k; c += p; } return k; }
+
+/* ---------- Intensidad: Atkinson & Wald (2007) ---------- */
+function mmiAW07(M, rhypo) {
+  const R = Math.sqrt(rhypo * rhypo + 14 * 14), lR = Math.log10(R), B = Math.max(0, Math.log10(R / 30)), x = M - 6;
+  const v = 12.27 + 2.270 * x + 0.1304 * x * x - 1.30 * lR - 0.0007070 * R + 1.95 * B - 0.577 * M * lR;
+  return Math.max(1, Math.min(10, v));
+}
+function mmiAt(ev, lat, lon) { const d = haversine(ev.lat, ev.lon, lat, lon); return mmiAW07(ev.mag, Math.sqrt(d * d + ev.depth * ev.depth)); }
+
+/* ---------- Modelos de réplicas ---------- */
+// ∫_{t1}^{t2} (t+c)^-p dt
+function omoriInt(t1, t2, p, c) { return Math.abs(p - 1) < 1e-6 ? Math.log((t2 + c) / (t1 + c)) : ((t2 + c) ** (1 - p) - (t1 + c) ** (1 - p)) / (1 - p); }
+// Máxima verosimilitud penalizada de Omori-Utsu (Ogata 1983), estilo USGS (Page et al. 2016):
+// c fijo, p con prior gaussiano N(p0, sp) para no sobreajustar en las primeras horas, K analítico.
+// Se excluyen los primeros tmin días porque la red no detecta todas las réplicas inmediatas.
+function fitOmori(times, T) {
+  const P = CFG.prior, ts = times.filter(t => t >= P.tmin), n = ts.length; if (n < 8 || T <= P.tmin) return null;
+  let best = null; const c = P.c;
+  for (let p = 0.6; p <= 1.6001; p += 0.005) {
+    const A = omoriInt(P.tmin, T, p, c); const K = n / A; let s = 0;
+    for (const t of ts) s += Math.log(t + c);
+    const llData = n * Math.log(K) - p * s - n;
+    const ll = llData - (p - P.p0) ** 2 / (2 * P.sp * P.sp);
+    if (!best || ll > best.ll) best = {p, c, K, ll, llData, nFit: n};
+  }
+  // p "solo datos" (sin prior), para mostrar qué dicen las réplicas por sí solas
+  let raw = null;
+  for (let p = 0.4; p <= 2.0001; p += 0.005) { const A = omoriInt(P.tmin, T, p, c); const K = n / A; let s = 0; for (const t of ts) s += Math.log(t + c); const ll = n * Math.log(K) - p * s; if (!raw || ll > raw.ll) raw = {p, ll}; }
+  best.pData = raw.p;
+  return best;
+}
+function bValue(mags, mc) { const m = mags.filter(x => x >= mc - 1e-9); if (m.length < 10) return null; const mean = m.reduce((a, b) => a + b, 0) / m.length; const b = Math.LOG10E / (mean - (mc - 0.05)); return {b, n: m.length, err: b / Math.sqrt(m.length)}; }
+
+/* ---------- Carga de datos ---------- */
+async function fetchJSON(url, ms) {
+  const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), ms || 20000);
+  try { const r = await fetch(url, {signal: ctl.signal, cache: 'no-store'}); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.json(); }
+  finally { clearTimeout(to); }
+}
+function fdsnURL(params) { const q = new URLSearchParams(Object.assign({format: 'geojson', orderby: 'time', limit: 20000}, params)); return CFG.fdsn + '?' + q.toString(); }
+function parse(fc) {
+  return (fc.features || []).filter(f => f.properties && f.properties.type !== 'quarry blast').map(f => {
+    const p = f.properties, g = f.geometry.coordinates;
+    return {id: f.id, t: p.time, mag: +p.mag, magType: p.magType || '', lat: g[1], lon: g[0], depth: Math.max(0, +g[2] || 10),
+            place: p.place || '', url: p.url, detail: p.detail, alert: p.alert, tsunami: p.tsunami, felt: p.felt, mmi: p.mmi, status: p.status, sig: p.sig};
+  }).filter(e => isFinite(e.mag));
+}
+async function load(manual) {
+  const start = new Date(Date.now() - S.days * 864e5).toISOString().slice(0, 19);
+  let evs, src;
+  try {
+    const fc = await fetchJSON(fdsnURL(Object.assign({starttime: start, minmagnitude: 2.5}, CFG.bbox)));
+    evs = parse(fc); src = 'live'; S.generated = Date.now();
+  } catch (e1) {
+    try {
+      const fc = await fetchJSON(CFG.feedDay);
+      evs = parse(fc).filter(inBox); src = 'feed'; S.generated = fc.metadata && fc.metadata.generated || Date.now();
+    } catch (e2) {
+      try { const fc = await fetchJSON('data/snapshot.json'); evs = parse(fc); src = 'snapshot'; S.generated = fc.metadata.generated; }
+      catch (e3) { setLive(false, 'Sin conexión'); toast('No se pudo obtener datos de USGS'); return; }
+    }
+  }
+  S.source = src;
+  setLive(src === 'live' || src === 'feed', src === 'snapshot' ? 'Datos de respaldo (sin conexión)' : 'En vivo');
+  $('stampTime').textContent = 'actualizado ' + fmtT(S.generated) + ' (hora de Panamá)';
+  evs.sort((a, b) => a.t - b.t);
+  // eventos nuevos
+  const newOnes = S.first ? [] : evs.filter(e => !S.lastIds.has(e.id));
+  S.lastIds = new Set(evs.map(e => e.id));
+  S.events = evs;
+  analyze();
+  render();
+  if (newOnes.length) notifyNew(newOnes);
+  if (S.first) { S.first = false; loadSecondary(); }
+  else if (manual) loadSecondary();
+}
+function inBox(e) { const b = CFG.bbox; return e.lat >= b.minlatitude && e.lat <= b.maxlatitude && e.lon >= b.minlongitude && e.lon <= b.maxlongitude; }
+function setLive(on, txt) { $('liveDot').classList.toggle('off', !on); $('liveTxt').textContent = txt; }
+
+/* datos complementarios del sismo principal: precursores, ShakeMap, DYFI, pronóstico USGS */
+async function loadSecondary() {
+  const m = S.main; if (!m) { renderPre(); return; }
+  try {
+    const fc = await fetchJSON(fdsnURL({starttime: new Date(m.t - 60 * 864e5).toISOString().slice(0, 19), endtime: new Date(m.t - 1000).toISOString().slice(0, 19),
+      latitude: m.lat, longitude: m.lon, maxradiuskm: 200, minmagnitude: 2.5}));
+    S.pre = parse(fc).sort((a, b) => a.t - b.t);
+  } catch (e) { S.pre = null; }
+  try {
+    const fc = await fetchJSON(fdsnURL({starttime: new Date(m.t - 365 * 864e5).toISOString().slice(0, 19), endtime: new Date(m.t - 60 * 864e5).toISOString().slice(0, 19),
+      latitude: m.lat, longitude: m.lon, maxradiuskm: 200, minmagnitude: 4}));
+    S.background = parse(fc);
+  } catch (e) { S.background = null; }
+  renderPre();
+  if (!m.detail) return;
+  try {
+    const d = await fetchJSON(m.detail);
+    S.detail = d; const pr = d.properties.products || {};
+    const sm = pr.shakemap && pr.shakemap[0] && pr.shakemap[0].contents;
+    const smUrl = sm && (sm['download/cont_mmi.json'] || sm['download/cont_mi.json']);
+    if (smUrl) { try { S.shake = await fetchJSON(smUrl.url); drawShake(); } catch (e) {} }
+    const dy = pr.dyfi && pr.dyfi[0] && pr.dyfi[0].contents;
+    const dyUrl = dy && (dy['dyfi_geo_10km.geojson'] || dy['dyfi_geo_1km.geojson']);
+    if (dyUrl) { try { S.dyfi = await fetchJSON(dyUrl.url); drawDyfi(); } catch (e) {} }
+    const of = pr.oaf && pr.oaf[0] && pr.oaf[0].contents;
+    const ofUrl = of && of['forecast.json'];
+    if (ofUrl) { try { S.oaf = await fetchJSON(ofUrl.url); renderOAF(); } catch (e) {} }
+  } catch (e) {}
+}
+
+/* ---------- Análisis de la secuencia ---------- */
+function analyze() {
+  const big = S.events.filter(e => e.mag >= CFG.mainMin);
+  let main = null; for (const e of big) if (!main || e.mag > main.mag) main = e;
+  if (main && (!S.main || S.main.id !== main.id)) { S.detail = S.oaf = S.shake = S.dyfi = null; S.pre = []; if (!S.first) setTimeout(loadSecondary, 0); }
+  S.main = main;
+  if (!main) { S.seq = []; S.fit = null; return; }
+  // radio de la secuencia según longitud de ruptura (Wells & Coppersmith 1994, desgarre): log L = -3.55 + 0.74 M
+  const L = 10 ** (-3.55 + 0.74 * main.mag); S.radius = Math.max(100, 1.5 * L);
+  S.seq = S.events.filter(e => e.t > main.t && haversine(main.lat, main.lon, e.lat, e.lon) <= S.radius);
+  const T = (S.generated - main.t) / 864e5; S.T = T;
+  const aft = S.seq.filter(e => e.mag >= CFG.mc);
+  const times = aft.map(e => (e.t - main.t) / 864e5);
+  const fit = fitOmori(times, T);
+  const bv = bValue(S.seq.map(e => e.mag), CFG.mc);
+  // b: combinación del valor genérico (1.0) con el estimado de la secuencia, ponderado por número de eventos
+  const P = CFG.prior;
+  const b = bv ? Math.min(1.3, Math.max(0.7, (bv.n * bv.b + P.nb * P.b0) / (bv.n + P.nb))) : P.b0;
+  S.fit = fit ? Object.assign(fit, {b, bRaw: bv, n: aft.length, T}) : null;
+  // a de Reasenberg-Jones específico de la secuencia: K = 10^(a + b (Mm - Mc))
+  if (S.fit) S.fit.a = Math.log10(S.fit.K) - b * (main.mag - CFG.mc);
+}
+// número esperado de réplicas ≥M en [t1,t2] días
+function expSeq(t1, t2, M) { const f = S.fit; return f.K * 10 ** (-f.b * (M - CFG.mc)) * omoriInt(t1, t2, f.p, f.c); }
+function expGen(t1, t2, M) { const g = CFG.generic; return 10 ** (g.a + g.b * (S.main.mag - M)) * omoriInt(t1, t2, g.p, g.c); }
+
+/* ---------- Render principal ---------- */
+function render() { renderKPIs(); drawMap(); renderSeq(); renderFC(); renderCities(); renderTable(); renderMethod(); }
+
+function renderKPIs() {
+  const m = S.main;
+  if (!m) {
+    $('kMain').textContent = 'Ninguno'; $('kMainS').textContent = 'Sin eventos M≥' + CFG.mainMin + ' en la ventana';
+    ['kAft', 'kBig', 'kRate', 'kP6'].forEach(k => $(k).textContent = '—'); ['kAftS', 'kBigS', 'kRateS', 'kP6S'].forEach(k => $(k).textContent = '');
+  } else {
+    $('kMain').textContent = 'M ' + m.mag.toFixed(1); $('kMainS').textContent = fmtT(m.t) + ' · ' + m.place.replace(', Panama', '');
+    const aft = S.seq.filter(e => e.mag >= CFG.mc);
+    $('kAft').textContent = aft.length; $('kAftS').textContent = S.seq.length + ' en total desde las ' + fmtH(m.t);
+    const big = S.seq.reduce((a, e) => !a || e.mag > a.mag ? e : a, null);
+    $('kBig').textContent = big ? 'M ' + big.mag.toFixed(1) : '—'; $('kBigS').textContent = big ? fmtT(big.t) + ' · ' + big.place.replace(', Panama', '') : '';
+    const last3 = aft.filter(e => e.t > S.generated - 3 * 36e5).length / 3;
+    const first3 = aft.filter(e => e.t <= m.t + 3 * 36e5).length / 3;
+    $('kRate').textContent = last3.toFixed(1) + ' /h'; $('kRateS').textContent = 'últimas 3 h · primeras 3 h: ' + first3.toFixed(1) + ' /h';
+    if (S.fit) { const n = expSeq(S.T, S.T + 1, 6); $('kP6').textContent = pct(1 - Math.exp(-n)); $('kP6S').textContent = 'modelo Omori-Gutenberg ajustado'; }
+    else { $('kP6').textContent = '—'; $('kP6S').textContent = 'pocos datos para ajustar'; }
+  }
+  // intensidad Ciudad de Panamá
+  const src = m ? [m].concat(S.seq) : S.events;
+  let best = null; for (const e of src) { const v = mmiAt(e, 8.983, -79.519); if (!best || v > best.v) best = {v, e}; }
+  if (best) { const r = Math.round(best.v); $('kPty').textContent = ROMAN[r] + ' · ' + MMI_TXT[r]; $('kPtyS').textContent = 'por M ' + best.e.mag.toFixed(1) + ' a ' + Math.round(haversine(best.e.lat, best.e.lon, 8.983, -79.519)) + ' km'; }
+}
+
+/* ---------- Mapa ---------- */
+let map, evLayer, heatLayer, imgLayer, shakeLayer, dyfiLayer, cityLayer, ruptLayer;
+function initMap() {
+  map = L.map('map', {zoomControl: true, preferCanvas: true}).setView([8.2, -80.4], 7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 18, attribution: '© OpenStreetMap'}).addTo(map);
+  evLayer = L.layerGroup().addTo(map); cityLayer = L.layerGroup().addTo(map);
+  const lg = L.control({position: 'bottomleft'});
+  lg.onAdd = () => { const d = L.DomUtil.create('div', 'legend'); d.id = 'legend'; return d; }; lg.addTo(map);
+}
+function drawMap() {
+  if (!map) return;
+  evLayer.clearLayers(); cityLayer.clearLayers();
+  if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+  if (imgLayer) { map.removeLayer(imgLayer); imgLayer = null; }
+  if (ruptLayer) { map.removeLayer(ruptLayer); ruptLayer = null; }
+  const now = S.generated || Date.now();
+  if (S.layer === 'mmi' || S.layer === 'main') drawIntensity(S.layer === 'main' && S.main ? [S.main] : (S.main ? [S.main].concat(S.seq) : S.events));
+  if (S.layer === 'dens') {
+    const pts = S.events.map(e => [e.lat, e.lon, Math.min(1, 0.15 + (e.mag - 2.5) / 5)]);
+    heatLayer = L.heatLayer(pts, {radius: 28, blur: 22, maxZoom: 10, minOpacity: 0.3}).addTo(map);
+  }
+  if (S.main) {
+    ruptLayer = L.circle([S.main.lat, S.main.lon], {radius: S.radius * 1000, color: '#8b0000', weight: 1, dashArray: '5 5', fill: false, interactive: false}).addTo(map);
+  }
+  for (const e of S.events) {
+    const ageH = (now - e.t) / 36e5;
+    const r = Math.max(3, 2.2 * Math.pow(1.75, e.mag - 2.5));
+    const isMain = S.main && e.id === S.main.id;
+    const mk = isMain
+      ? L.marker([e.lat, e.lon], {icon: L.divIcon({className: '', html: '<svg width="34" height="34" viewBox="0 0 24 24"><path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7L12 17.3 5.8 20.9l1.6-7L2 9.2l7.1-.6z" fill="#8b0000" stroke="#fff" stroke-width="1.3"/></svg>', iconSize: [34, 34], iconAnchor: [17, 17]}), zIndexOffset: 1000})
+      : L.circleMarker([e.lat, e.lon], {radius: r, color: ageH < 1 ? '#000' : '#333', weight: ageH < 1 ? 2.2 : 0.8, fillColor: magColor(e.mag), fillOpacity: ageH < 24 ? 0.9 : 0.55});
+    mk.bindPopup(popupHtml(e)); mk.addTo(evLayer);
+  }
+  // ciudades con intensidad estimada
+  const src = S.main ? [S.main].concat(S.seq) : S.events;
+  for (const [n, la, lo] of CITIES) {
+    let v = 1; for (const e of src) v = Math.max(v, mmiAt(e, la, lo));
+    const r = Math.round(v);
+    L.circleMarker([la, lo], {radius: 5, color: '#111', weight: 1.2, fillColor: mmiColor(v), fillOpacity: 1}).bindTooltip(n + ' · MMI ' + ROMAN[r] + ' (' + MMI_TXT[r] + ')', {direction: 'top'}).addTo(cityLayer);
+  }
+  drawLegend();
+}
+function popupHtml(e) {
+  const d = S.main ? Math.round(haversine(S.main.lat, S.main.lon, e.lat, e.lon)) : null;
+  const pty = Math.round(mmiAt(e, 8.983, -79.519));
+  return '<b>M ' + e.mag.toFixed(1) + ' ' + e.magType + '</b> · ' + e.place + '<br>' + fmtT(e.t, {year: 'numeric'}) + ' (Panamá)<br>Profundidad ' + e.depth.toFixed(0) + ' km' +
+    (d != null && S.main.id !== e.id ? ' · a ' + d + ' km del principal' : '') + '<br>Intensidad estimada en Cd. Panamá: ' + ROMAN[pty] +
+    (e.mmi ? '<br>MMI máx. ShakeMap USGS: ' + (+e.mmi).toFixed(1) : '') + (e.felt ? '<br>Reportes "¿Lo sintió?": ' + e.felt : '') +
+    '<br><a href="' + e.url + '" target="_blank" rel="noopener">Ver en USGS</a>';
+}
+function drawIntensity(evs) {
+  const g = CFG.grid; const nx = Math.round((g.lon1 - g.lon0) / g.step), ny = Math.round((g.lat1 - g.lat0) / g.step);
+  const cv = document.createElement('canvas'); cv.width = nx; cv.height = ny; const cx = cv.getContext('2d'); const img = cx.createImageData(nx, ny);
+  const use = evs.filter(e => e.mag >= 4); // los menores no aportan intensidad relevante a escala país
+  for (let j = 0; j < ny; j++) {
+    const lat = g.lat1 - (j + 0.5) * g.step;
+    for (let i = 0; i < nx; i++) {
+      const lon = g.lon0 + (i + 0.5) * g.step; let v = 1;
+      for (const e of use) { const dla = (e.lat - lat) * 111.2, dlo = (e.lon - lon) * 111.2 * Math.cos(lat * Math.PI / 180); const dd = Math.sqrt(dla * dla + dlo * dlo); const m = mmiAW07(e.mag, Math.sqrt(dd * dd + e.depth * e.depth)); if (m > v) v = m; }
+      const k = (j * nx + i) * 4;
+      if (v < 2.5) { img.data[k + 3] = 0; continue; }
+      const c = mmiColor(v).match(/\d+/g).map(Number);
+      img.data[k] = c[0]; img.data[k + 1] = c[1]; img.data[k + 2] = c[2]; img.data[k + 3] = Math.round(Math.min(1, 0.35 + (v - 2.5) / 8) * 200);
+    }
+  }
+  cx.putImageData(img, 0, 0);
+  imgLayer = L.imageOverlay(cv.toDataURL(), [[g.lat0, g.lon0], [g.lat1, g.lon1]], {opacity: 0.6, interactive: false}).addTo(map);
+  imgLayer.bringToBack();
+}
+function drawLegend() {
+  const el = $('legend'); if (!el) return;
+  let h = '';
+  if (S.layer === 'mmi' || S.layer === 'main') {
+    h += '<b>Intensidad estimada (MMI)</b>';
+    for (let r = 9; r >= 3; r--) h += '<div class="row"><i style="background:' + MMI_COL[r - 1][1] + ';border:1px solid #0002"></i>' + ROMAN[r] + ' ' + MMI_TXT[r] + '</div>';
+  } else if (S.layer === 'dens') h += '<b>Densidad de epicentros</b><div class="note">ponderada por magnitud</div>';
+  h += '<div style="margin-top:4px"><b>Magnitud</b></div>';
+  for (const [m, t] of [[7, '≥7'], [6, '6–6.9'], [5, '5–5.9'], [4.5, '4.5–4.9'], [4, '4–4.4'], [3, '<4']]) h += '<div class="row"><i style="background:' + magColor(m) + ';border-radius:50%;width:10px"></i>' + t + '</div>';
+  h += '<div class="note" style="margin-top:3px">Borde negro grueso: última hora</div>';
+  el.innerHTML = h;
+}
+function layerCtl() { if (!S.layerCtl) S.layerCtl = L.control.layers(null, {}, {collapsed: false, position: 'topright'}).addTo(map); return S.layerCtl; }
+function drawShake() {
+  if (!S.shake || !map) return;
+  if (shakeLayer) { map.removeLayer(shakeLayer); layerCtl().removeLayer(shakeLayer); }
+  shakeLayer = L.geoJSON(S.shake, {style: f => { const v = +(f.properties.value || f.properties.mmi || 0); return {color: f.properties.color || mmiColor(v), weight: 2, opacity: 0.95}; },
+    onEachFeature: (f, l) => l.bindTooltip('ShakeMap USGS · MMI ' + (f.properties.value || ''), {sticky: true})});
+  layerCtl().addOverlay(shakeLayer, 'Contornos ShakeMap (USGS oficial)'); shakeLayer.addTo(map);
+  toast('ShakeMap oficial de USGS cargado (contornos en el mapa)');
+}
+function drawDyfi() {
+  if (!S.dyfi || !map) return;
+  if (dyfiLayer) { map.removeLayer(dyfiLayer); layerCtl().removeLayer(dyfiLayer); }
+  dyfiLayer = L.geoJSON(S.dyfi, {style: f => { const v = +(f.properties.cdi || 0); return {color: '#333', weight: 0.4, fillColor: mmiColor(v), fillOpacity: 0.75}; },
+    onEachFeature: (f, l) => l.bindTooltip('¿Lo sintió? · CDI ' + (f.properties.cdi || '') + ' · ' + (f.properties.nresp || '') + ' respuestas', {sticky: true})});
+  layerCtl().addOverlay(dyfiLayer, 'Reportes ciudadanos "¿Lo sintió?"');
+}
+
+/* ---------- Gráficas ---------- */
+function chartDefaults() {
+  Chart.defaults.font.family = 'Inter, system-ui, sans-serif'; Chart.defaults.font.size = 11;
+  Chart.defaults.color = cssVar('--muted'); Chart.defaults.borderColor = cssVar('--line');
+}
+function mkChart(id, cfg) { if (S.charts[id]) S.charts[id].destroy(); S.charts[id] = new Chart($(id), cfg); }
+const axis = (t, extra) => Object.assign({title: {display: true, text: t}, grid: {color: cssVar('--line')}}, extra || {});
+
+function renderSeq() {
+  document.querySelectorAll('.mcLbl').forEach(x => x.textContent = CFG.mc);
+  const m = S.main;
+  if (!m) { $('seqLead').textContent = 'No hay un sismo M≥' + CFG.mainMin + ' en la ventana seleccionada. Amplía la ventana de días para ver secuencias anteriores.'; return; }
+  const aft = S.seq.filter(e => e.mag >= CFG.mc); const f = S.fit; const H = S.T * 24;
+  const big = S.seq.reduce((a, e) => !a || e.mag > a.mag ? e : a, null);
+  const lastH = aft.filter(e => e.t > S.generated - 36e5).length;
+  const firstH = aft.filter(e => e.t <= m.t + 36e5).length;
+  // zonas: oeste/este del epicentro
+  const west = S.seq.filter(e => e.lon < m.lon - 0.25).length, east = S.seq.filter(e => e.lon > m.lon + 0.25).length;
+  let txt = '<b>' + aft.length + ' réplicas M≥' + CFG.mc + '</b> en ' + H.toFixed(1) + ' h desde el sismo principal (M ' + m.mag.toFixed(1) + ', ' + fmtT(m.t) + '). ';
+  txt += 'Primera hora: ' + firstH + '; última hora: ' + lastH + '. ';
+  if (big) txt += 'Mayor réplica: <b>M ' + big.mag.toFixed(1) + '</b> a las ' + fmtH(big.t) + ' (Båth anticipa la mayor réplica alrededor de M ' + (m.mag - 1.2).toFixed(1) + '). ';
+  if (west + east > 5) txt += 'Las réplicas se reparten ' + (west > east ? 'más hacia el oeste' : 'más hacia el este') + ' del epicentro (' + west + ' al oeste, ' + east + ' al este), lo que dibuja la extensión de la ruptura. ';
+  if (f) txt += 'Decaimiento ajustado: p = ' + f.p.toFixed(2) + (f.p < 0.9 ? ' (decaimiento lento)' : f.p > 1.2 ? ' (decaimiento rápido)' : ' (típico)') + '.';
+  $('seqLead').innerHTML = txt;
+
+  chartDefaults();
+  const pts = S.seq.map(e => ({x: Math.max(0.01, (e.t - m.t) / 36e5), y: e.mag, e}));
+  mkChart('chMT', {type: 'scatter', data: {datasets: [{data: pts, pointRadius: c => 2 + Math.max(0, (c.raw ? c.raw.y : 4) - 4) * 2.2, pointBackgroundColor: c => magColor(c.raw ? c.raw.y : 4), pointBorderColor: '#0006', pointBorderWidth: 0.6}]},
+    options: {maintainAspectRatio: false, plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => 'M ' + c.raw.y.toFixed(1) + ' · ' + fmtT(c.raw.e.t) + ' · ' + c.raw.e.place}}},
+      scales: {x: axis('Horas desde el sismo principal', {min: 0}), y: axis('Magnitud', {suggestedMin: 4, suggestedMax: Math.max(7, m.mag)})}}});
+
+  const nb = Math.max(1, Math.ceil(H)); const counts = new Array(nb).fill(0);
+  for (const e of aft) { const h = Math.floor((e.t - m.t) / 36e5); if (h < nb) counts[h]++; }
+  const labels = counts.map((_, i) => i + 'h');
+  const model = f ? counts.map((_, i) => expSeq(i / 24, Math.min(i + 1, H) / 24, CFG.mc)) : [];
+  const gen = counts.map((_, i) => expGen(i / 24, (i + 1) / 24, CFG.mc));
+  mkChart('chRate', {data: {labels, datasets: [
+      {type: 'bar', label: 'Observado', data: counts, backgroundColor: cssVar('--accent') + '99', borderRadius: 3},
+      {type: 'line', label: 'Omori ajustado a esta secuencia', data: model, borderColor: '#d7301f', pointRadius: 0, borderWidth: 2, tension: 0.3},
+      {type: 'line', label: 'Genérico Reasenberg-Jones', data: gen, borderColor: '#7a7a7a', borderDash: [5, 4], pointRadius: 0, borderWidth: 1.5, tension: 0.3}]},
+    options: {maintainAspectRatio: false, plugins: {legend: {position: 'bottom', labels: {boxWidth: 12}}}, scales: {x: axis('Hora desde el sismo principal'), y: axis('Réplicas por hora', {beginAtZero: true})}}});
+
+  const mags = S.seq.map(e => e.mag); const bins = []; for (let M = 2.5; M <= Math.max(7, m.mag) + 0.01; M += 0.1) bins.push(+M.toFixed(1));
+  const cum = bins.map(M => ({x: M, y: mags.filter(x => x >= M - 1e-9).length})).filter(p => p.y > 0);
+  const ds = [{type: 'scatter', label: 'N(≥M) observado', data: cum.map(p => ({x: p.x, y: Math.log10(p.y)})), pointRadius: 3, backgroundColor: cssVar('--accent')}];
+  if (f) { const n0 = mags.filter(x => x >= CFG.mc).length; ds.push({type: 'line', label: 'b = ' + f.b.toFixed(2), data: bins.filter(M => M >= CFG.mc).map(M => ({x: M, y: Math.log10(n0) - f.b * (M - CFG.mc)})), borderColor: '#d7301f', pointRadius: 0, borderWidth: 2}); }
+  mkChart('chGR', {data: {datasets: ds}, options: {maintainAspectRatio: false, plugins: {legend: {position: 'bottom', labels: {boxWidth: 12}}},
+    scales: {x: axis('Magnitud', {type: 'linear', min: 4, max: Math.ceil(m.mag)}), y: axis('log₁₀ N (≥M)', {min: 0})}}});
+}
+
+/* ---------- Pronóstico ---------- */
+function probClass(p) { return p >= 0.5 ? 'ph' : p >= 0.1 ? 'pm' : 'pl'; }
+function renderFC() {
+  const m = S.main, f = S.fit;
+  if (!m || !f) { $('fcLead').textContent = m ? 'Aún no hay suficientes réplicas para ajustar el modelo (se necesitan al menos 8 con M≥' + CFG.mc + ').' : 'No hay secuencia activa.'; $('fcTable').innerHTML = ''; return; }
+  const T = S.T;
+  const W = [['Próximas 6 h', 0.25], ['Próximas 24 h', 1], ['Próximos 7 días', 7], ['Próximos 30 días', 30]];
+  const Ms = [5, 6, 7];
+  let h = '<thead><tr><th>Ventana</th>' + Ms.map(M => '<th class="num">M≥' + M + '</th>').join('') + '<th class="num">Nº esperado M≥5 (rango 95 %)</th></tr></thead><tbody>';
+  for (const [lbl, dt] of W) {
+    h += '<tr><td>' + lbl + '</td>';
+    for (const M of Ms) {
+      const n = expSeq(T, T + dt, M), ng = expGen(T, T + dt, M); const p = 1 - Math.exp(-n), pg = 1 - Math.exp(-ng);
+      h += '<td class="num" title="Genérico Reasenberg-Jones: ' + pct(pg) + '"><span class="prob ' + probClass(p) + '">' + pct(p) + '</span></td>';
+    }
+    const n5 = expSeq(T, T + dt, 5);
+    h += '<td class="num">' + n5.toFixed(n5 < 10 ? 1 : 0) + ' (' + poissonQ(n5, 0.025) + '–' + poissonQ(n5, 0.975) + ')</td></tr>';
+  }
+  h += '</tbody>';
+  $('fcTable').innerHTML = h;
+  const rNow = expSeq(T, T + 1 / 24, CFG.mc), r24 = expSeq(T + 1, T + 1 + 1 / 24, CFG.mc);
+  const p6 = 1 - Math.exp(-expSeq(T, T + 1, 6)), p7 = 1 - Math.exp(-expSeq(T, T + 7, 7)), pM = 1 - Math.exp(-expSeq(T, T + 7, m.mag));
+  $('fcLead').innerHTML = 'Con las <b>' + f.n + ' réplicas M≥' + CFG.mc + '</b> registradas, el modelo estima ahora <b>' + rNow.toFixed(1) + ' réplicas M≥' + CFG.mc + ' por hora</b>, bajando a ~' + r24.toFixed(1) + ' por hora dentro de 24 h. ' +
+    'Que la tasa baje <b>no impide</b> réplicas fuertes aisladas: la probabilidad de al menos una <b>M≥6 en las próximas 24 h es ' + pct(p6) + '</b>, y de una M≥7 en los próximos 7 días ' + pct(p7) + '. ' +
+    'La probabilidad de que en 7 días ocurra un sismo igual o mayor al principal (M ' + m.mag.toFixed(1) + ') es ' + pct(pM) + '.';
+  $('fcNote').innerHTML = 'Colores: verde &lt;10 %, amarillo 10–50 %, rojo ≥50 %. Pasa el cursor sobre cada probabilidad para ver el valor del modelo genérico (Reasenberg-Jones 1989). ' +
+    'Modelo ajustado: K = ' + f.K.toFixed(2) + ', p = ' + f.p.toFixed(2) + ' (las réplicas solas sugieren p = ' + f.pData.toFixed(2) + (f.pData < 0.9 ? ', es decir, un decaimiento más lento de lo habitual' : '') + '), c = ' + f.c + ' d, b = ' + f.b.toFixed(2) + ' (a equivalente ' + f.a.toFixed(2) + '). ' +
+    'Si el decaimiento sigue lento, las probabilidades reales son mayores que las mostradas. Se recalcula con cada actualización.';
+
+  // gráfica acumulada con proyección
+  chartDefaults();
+  const aft = S.seq.filter(e => e.mag >= CFG.mc);
+  const obs = aft.map((e, i) => ({x: (e.t - m.t) / 36e5, y: i + 1}));
+  const Hn = T * 24, Hend = Hn + 24; const mod = [], lo = [], hi = [];
+  const tm = CFG.prior.tmin, n0 = aft.filter(e => (e.t - m.t) / 864e5 < tm).length;
+  for (let x = tm * 24; x <= Hend; x += Hend / 120) { const n = n0 + f.K * omoriInt(tm, x / 24, f.p, f.c); mod.push({x, y: n}); if (x >= Hn) { const add = f.K * omoriInt(T, x / 24, f.p, f.c); lo.push({x, y: f.n + poissonQ(add, 0.025)}); hi.push({x, y: f.n + poissonQ(add, 0.975)}); } }
+  mkChart('chCum', {type: 'scatter', data: {datasets: [
+      {label: 'Observado', data: obs, showLine: true, stepped: true, borderColor: cssVar('--accent'), pointRadius: 0, borderWidth: 2},
+      {label: 'Modelo', data: mod, showLine: true, borderColor: '#d7301f', pointRadius: 0, borderWidth: 1.6},
+      {label: 'Proyección 95 % (alto)', data: hi, showLine: true, borderColor: '#d7301f66', borderDash: [4, 4], pointRadius: 0, borderWidth: 1},
+      {label: 'Proyección 95 % (bajo)', data: lo, showLine: true, borderColor: '#d7301f66', borderDash: [4, 4], pointRadius: 0, borderWidth: 1}]},
+    options: {maintainAspectRatio: false, plugins: {legend: {position: 'bottom', labels: {boxWidth: 12, filter: i => !/bajo/.test(i.text)}}},
+      scales: {x: axis('Horas desde el sismo principal', {min: 0, max: Math.ceil(Hend)}), y: axis('Réplicas acumuladas M≥' + CFG.mc, {beginAtZero: true})}}});
+  renderOAF();
+}
+function renderOAF() {
+  const box = $('oafBox'); const o = S.oaf;
+  if (!o || !o.forecast) { box.innerHTML = S.main ? '<p class="note">El pronóstico operativo de USGS (Aftershock Forecast) aparecerá aquí cuando esté publicado para este sismo.</p>' : ''; return; }
+  let h = '<h3 style="font-size:13px;margin:10px 0 4px">Pronóstico oficial USGS (Operational Aftershock Forecast)</h3><table class="ptab"><thead><tr><th>Ventana</th>';
+  const mags = (o.forecast[0].bins || []).map(b => b.magnitude);
+  h += mags.map(M => '<th class="num">M≥' + M + '</th>').join('') + '</tr></thead><tbody>';
+  for (const w of o.forecast) {
+    h += '<tr><td>' + (w.label || '') + '</td>';
+    for (const b of (w.bins || [])) { const p = +b.probability; h += '<td class="num"><span class="prob ' + probClass(p) + '">' + pct(p) + '</span><br><span class="note">' + (b.p95minimum ?? '') + '–' + (b.p95maximum ?? '') + '</span></td>'; }
+    h += '</tr>';
+  }
+  h += '</tbody></table><p class="note">Emitido ' + (o.creationTime ? fmtT(o.creationTime) : '') + '. Probabilidad de al menos una réplica y rango de cantidad (95 %).</p>';
+  box.innerHTML = h;
+}
+
+/* ---------- Antes del sismo ---------- */
+function renderPre() {
+  const m = S.main;
+  if (!m) { $('preLead').textContent = 'No hay sismo principal en la ventana.'; return; }
+  if (S.pre === null) { $('preLead').textContent = 'No se pudo consultar el historial previo.'; return; }
+  const pre = S.pre || [];
+  const d2 = pre.filter(e => e.t > m.t - 2 * 864e5), d7 = pre.filter(e => e.t > m.t - 7 * 864e5);
+  const big = pre.reduce((a, e) => !a || e.mag > a.mag ? e : a, null);
+  let bg = '';
+  if (S.background) { const r = S.background.length / 305; const r60 = pre.filter(e => e.mag >= 4).length / 60; bg = ' En el año anterior la zona tuvo en promedio ' + (r * 30).toFixed(1) + ' sismos M≥4 por mes; en los 60 días previos, ' + (r60 * 30).toFixed(1) + ' por mes' + (r60 > 2 * r ? ' (por encima de lo normal)' : ' (sin aumento claro)') + '.'; }
+  $('preLead').innerHTML = 'En los 60 días antes del sismo principal hubo <b>' + pre.length + ' sismos M≥2.5</b> a menos de 200 km del epicentro; <b>' + d7.length + '</b> en los últimos 7 días y <b>' + d2.length + '</b> en las 48 h previas.' +
+    (big ? ' El mayor fue M ' + big.mag.toFixed(1) + ' el ' + fmtT(big.t) + '.' : '') + bg;
+  $('preNote').innerHTML = '<b>¿Se podía prever?</b> No de forma determinista. Alrededor de la mitad de los grandes sismos tienen algún precursor, pero sismos de ese tamaño ocurren con frecuencia sin que les siga uno mayor, por lo que solo se reconocen como precursores después. ' +
+    'Lo que sí se puede hacer, y es lo que muestra la pestaña "Qué esperar", es pronosticar probabilísticamente las réplicas una vez ocurrido el sismo principal.';
+  chartDefaults();
+  mkChart('chPre', {type: 'scatter', data: {datasets: [{data: pre.map(e => ({x: -(m.t - e.t) / 864e5, y: e.mag, e})), pointRadius: c => 2 + Math.max(0, (c.raw ? c.raw.y : 3) - 3) * 1.6, pointBackgroundColor: c => magColor(c.raw ? c.raw.y : 3)}]},
+    options: {maintainAspectRatio: false, plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => 'M ' + c.raw.y.toFixed(1) + ' · ' + fmtT(c.raw.e.t) + ' · ' + c.raw.e.place}}},
+      scales: {x: axis('Días antes del sismo principal', {min: -60, max: 0}), y: axis('Magnitud', {suggestedMin: 2.5, suggestedMax: 6})}}});
+}
+
+/* ---------- Ciudades ---------- */
+function renderCities() {
+  const src = S.main ? [S.main].concat(S.seq) : S.events;
+  const rows = CITIES.map(([n, la, lo]) => {
+    let mx = 1, by = null, nIV = 0; for (const e of src) { const v = mmiAt(e, la, lo); if (v > mx) { mx = v; by = e; } if (v >= 3.5) nIV++; }
+    const vm = S.main ? mmiAt(S.main, la, lo) : null;
+    return {n, mx, by, nIV, vm, d: S.main ? haversine(S.main.lat, S.main.lon, la, lo) : null};
+  }).sort((a, b) => b.mx - a.mx);
+  let h = '<thead><tr><th>Ciudad</th><th class="num">Dist. km</th><th>Principal</th><th>Máxima</th><th class="num">Sismos ≥IV</th></tr></thead><tbody>';
+  for (const r of rows) {
+    const R = Math.round(r.mx), Rm = r.vm ? Math.round(r.vm) : null;
+    h += '<tr><td>' + r.n + '</td><td class="num">' + (r.d != null ? Math.round(r.d) : '—') + '</td><td>' + (Rm ? '<span class="mmi" style="background:' + mmiColor(r.vm) + '">' + ROMAN[Rm] + '</span> ' + MMI_TXT[Rm] : '—') +
+      '</td><td><span class="mmi" style="background:' + mmiColor(r.mx) + '">' + ROMAN[R] + '</span> ' + MMI_TXT[R] + '</td><td class="num">' + r.nIV + '</td></tr>';
+  }
+  $('cityTable').innerHTML = h + '</tbody>';
+}
+
+/* ---------- Tabla de eventos ---------- */
+const COLS = [
+  {k: 't', l: 'Hora (Panamá)', f: e => fmtT(e.t, {year: 'numeric'})},
+  {k: 'mag', l: 'Mag', num: 1, f: e => '<span class="mag" style="background:' + magColor(e.mag) + ';color:' + magInk(e.mag) + '">' + e.mag.toFixed(1) + '</span>'},
+  {k: 'magType', l: 'Tipo', f: e => e.magType},
+  {k: 'place', l: 'Lugar', f: e => '<a href="' + e.url + '" target="_blank" rel="noopener" style="color:inherit">' + e.place + '</a>'},
+  {k: 'depth', l: 'Prof. km', num: 1, f: e => e.depth.toFixed(0)},
+  {k: 'dist', l: 'Dist. principal km', num: 1, f: e => e.dist == null ? '—' : Math.round(e.dist)},
+  {k: 'pty', l: 'MMI est. Cd. Panamá', num: 1, f: e => '<span class="mmi" style="background:' + mmiColor(e.pty) + '">' + ROMAN[Math.round(e.pty)] + '</span>'},
+  {k: 'status', l: 'Estado', f: e => e.status === 'reviewed' ? 'Revisado' : 'Automático'}
+];
+function rowsFiltered() {
+  const q = $('fText').value.trim().toLowerCase(), mm = +$('fMag').value, sc = $('fScope').value;
+  const seqIds = new Set(S.seq.map(e => e.id)); if (S.main) seqIds.add(S.main.id);
+  return S.events.filter(e => e.mag >= mm && (!q || e.place.toLowerCase().includes(q)) && (sc === 'all' || seqIds.has(e.id))).map(e => Object.assign({}, e, {
+    dist: S.main ? haversine(S.main.lat, S.main.lon, e.lat, e.lon) : null, pty: mmiAt(e, 8.983, -79.519)}));
+}
+function renderTable() {
+  const rows = rowsFiltered(); const k = S.sortKey, d = S.sortDir;
+  rows.sort((a, b) => { const x = a[k], y = b[k]; return (x == null) - (y == null) || (x < y ? -d : x > y ? d : 0); });
+  let h = '<thead><tr>' + COLS.map(c => '<th data-k="' + c.k + '" class="' + (c.num ? 'num ' : '') + (k === c.k ? 'sorted' : '') + '">' + c.l + '<span class="ar">' + (k === c.k ? (d > 0 ? '▲' : '▼') : '↕') + '</span></th>').join('') + '</tr></thead><tbody>';
+  for (const e of rows) h += '<tr data-id="' + e.id + '">' + COLS.map(c => '<td class="' + (c.num ? 'num' : '') + '">' + c.f(e) + '</td>').join('') + '</tr>';
+  $('evTable').innerHTML = h + '</tbody>';
+  $('tblCount').textContent = rows.length + ' de ' + S.events.length + ' eventos';
+}
+function exportXlsx(all) {
+  if (typeof XLSX === 'undefined') { toast('Librería de Excel no disponible sin conexión'); return; }
+  const rows = (all ? S.events.map(e => Object.assign({}, e, {dist: S.main ? haversine(S.main.lat, S.main.lon, e.lat, e.lon) : null, pty: mmiAt(e, 8.983, -79.519)})) : rowsFiltered());
+  const data = rows.map(e => ({'Fecha y hora (Panamá)': fmtT(e.t, {year: 'numeric', second: '2-digit'}), 'UTC': new Date(e.t).toISOString(), 'Magnitud': e.mag, 'Tipo magnitud': e.magType,
+    'Lugar': e.place, 'Latitud': e.lat, 'Longitud': e.lon, 'Profundidad km': e.depth, 'Distancia al principal km': e.dist == null ? '' : Math.round(e.dist),
+    'MMI estimada Cd. Panamá': +e.pty.toFixed(1), 'Estado': e.status, 'ID USGS': e.id, 'Enlace': e.url}));
+  const wb = XLSX.utils.book_new(); const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [{wch: 20}, {wch: 24}, {wch: 9}, {wch: 10}, {wch: 40}, {wch: 9}, {wch: 9}, {wch: 10}, {wch: 12}, {wch: 12}, {wch: 10}, {wch: 14}, {wch: 50}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Eventos');
+  if (S.fit) {
+    const T = S.T, fc = [];
+    for (const [lbl, dt] of [['6 h', 0.25], ['24 h', 1], ['7 días', 7], ['30 días', 30]]) for (const M of [5, 6, 7]) { const n = expSeq(T, T + dt, M); fc.push({'Ventana': lbl, 'Magnitud': 'M≥' + M, 'Nº esperado': +n.toFixed(2), 'Probabilidad ≥1': +(1 - Math.exp(-n)).toFixed(3)}); }
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fc), 'Pronóstico');
+  }
+  XLSX.writeFile(wb, 'sismos_panama_' + new Date().toISOString().slice(0, 10) + (all ? '_completo' : '_vista') + '.xlsx');
+}
+
+/* ---------- Metodología ---------- */
+function renderMethod() {
+  const f = S.fit, m = S.main;
+  $('methodBox').innerHTML = `
+<p class="lead"><b>1. Datos.</b> Catálogo ComCat de USGS vía su API FDSN, región 5–11°N, 76–84.5°O, M≥2.5, actualizado cada ${CFG.refreshSec} s. Si la API falla se usa el feed del último día y, sin conexión, una copia de respaldo.</p>
+<p class="lead"><b>2. Sismo principal y secuencia.</b> El mayor evento M≥${CFG.mainMin} de la ventana. Réplicas = eventos posteriores dentro de un radio de 1.5 veces la longitud de ruptura esperada (Wells y Coppersmith 1994):</p>
+<div class="math">log₁₀ L = −3.55 + 0.74·M${m ? `\nL = ${(10 ** (-3.55 + 0.74 * m.mag)).toFixed(0)} km → radio = ${S.radius.toFixed(0)} km` : ''}</div>
+<p class="lead"><b>3. Decaimiento (ley de Omori-Utsu).</b> Tasa de réplicas con M≥Mc (Mc = ${CFG.mc}, completitud de la red global en esta zona):</p>
+<div class="math">λ(t) = K / (t + c)^p     (t en días)
+c = ${CFG.prior.c} d fijo (Page et al. 2016). K y p por máxima verosimilitud (Ogata 1983),
+con un prior p ~ Normal(${CFG.prior.p0}, ${CFG.prior.sp}) para no sobreajustar con pocas horas de datos,
+excluyendo los primeros ${Math.round(CFG.prior.tmin * 1440)} min (la red no detecta todas las réplicas inmediatas):
+log L = n·log K − p·Σ log(tᵢ + c) − K·∫ₜₘᵢₙᵀ(t + c)^−p dt − (p − ${CFG.prior.p0})² / (2·${CFG.prior.sp}²)${f ? `\nResultado: n = ${f.nFit}, T = ${(f.T * 24).toFixed(1)} h → K = ${f.K.toFixed(2)}, p = ${f.p.toFixed(2)} (solo datos: ${f.pData.toFixed(2)})` : ''}</div>
+<p class="lead"><b>4. Magnitudes (Gutenberg-Richter).</b> La proporción de réplicas grandes sigue N(≥M) ∝ 10^(−b·M). Estimador de Aki (1965):</p>
+<div class="math">b = log₁₀(e) / (M̄ − (Mc − ΔM/2))
+b usado = (n·b_secuencia + ${CFG.prior.nb}·${CFG.prior.b0}) / (n + ${CFG.prior.nb})${f && f.bRaw ? `\n${f.bRaw.n} eventos → b secuencia = ${f.bRaw.b.toFixed(2)} ± ${f.bRaw.err.toFixed(2)} → b usado = ${f.b.toFixed(2)}` : ''}</div>
+<p class="lead"><b>5. Pronóstico (Reasenberg y Jones 1989).</b> Combinando 3 y 4, el número esperado de réplicas ≥M entre t₁ y t₂ y la probabilidad de al menos una (proceso de Poisson):</p>
+<div class="math">N = K·10^(−b(M − Mc)) · ∫ₜ₁ᵗ² (t + c)^−p dt
+P(≥1) = 1 − e^(−N)
+Rango 95 % = cuantiles 2.5 % y 97.5 % de Poisson(N)${f && m ? `\nEj. M≥6, próximas 24 h: N = ${expSeq(S.T, S.T + 1, 6).toFixed(3)} → P = ${pct(1 - Math.exp(-expSeq(S.T, S.T + 1, 6)))}` : ''}</div>
+<p class="lead">Como referencia se muestra el modelo genérico de Reasenberg y Jones (a = ${CFG.generic.a}, b = ${CFG.generic.b}, p = ${CFG.generic.p}, c = ${CFG.generic.c} d). USGS usa este mismo marco con parámetros por región tectónica (Page et al. 2016) y lo actualiza con los datos de cada secuencia (Michael et al. 2020); cuando publica su pronóstico oficial, aparece en "Qué esperar".</p>
+<p class="lead"><b>6. Ley de Båth.</b> La mayor réplica suele ser ~1.2 unidades menor que el principal${m ? ` (≈ M ${(m.mag - 1.2).toFixed(1)})` : ''}. Es un promedio con dispersión de ±0.5: no es un tope.</p>
+<p class="lead"><b>7. Mapa de calor de intensidad.</b> En cada punto de una malla de ${CFG.grid.step}° se calcula la intensidad de cada sismo M≥4 con la ecuación de Atkinson y Wald (2007) y se toma la máxima:</p>
+<div class="math">R = √(R_hipo² + 14²),  B = max(0, log₁₀(R/30))
+MMI = 12.27 + 2.270(M−6) + 0.1304(M−6)² − 1.30·log₁₀R − 0.000707·R + 1.95·B − 0.577·M·log₁₀R</div>
+<p class="lead">La ecuación fue calibrada con datos de California; no incluye efectos de suelo local ni la directividad de la ruptura, por eso donde USGS publica ShakeMap y reportes "¿Lo sintió?" se pueden activar en el selector de capas del mapa (arriba a la derecha) para comparar.</p>
+<p class="lead"><b>Limitaciones.</b> La red global de USGS no registra todas las réplicas menores de ~M4.5 en Panamá; el IGC tiene un catálogo local más completo. Los modelos no anticipan cuándo ocurrirá una réplica concreta: dan probabilidades. Un cambio de comportamiento (por ejemplo, un sismo grande en otra falla) invalida el ajuste.</p>`;
+}
+
+/* ---------- Alertas ---------- */
+function alertThr() { return +(localStorage.getItem('sp_thr') || 5); }
+function notifyNew(list) {
+  const thr = alertThr(); const sig = list.filter(e => e.mag >= thr).sort((a, b) => b.mag - a.mag);
+  const any = list.sort((a, b) => b.mag - a.mag)[0];
+  toast('Nuevo: M ' + any.mag.toFixed(1) + ' · ' + any.place + ' · ' + fmtH(any.t), 6000);
+  if (!sig.length || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const e = sig[0]; const body = e.place + ' · ' + fmtT(e.t) + ' (Panamá) · Prof. ' + e.depth.toFixed(0) + ' km';
+  navigator.serviceWorker && navigator.serviceWorker.ready.then(r => r.showNotification('Sismo M ' + e.mag.toFixed(1), {body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: e.id, data: {url: location.href}}))
+    .catch(() => new Notification('Sismo M ' + e.mag.toFixed(1), {body}));
+}
+async function setupAlerts() {
+  if (!('Notification' in window)) { toast('Este navegador no soporta notificaciones'); return; }
+  const p = await Notification.requestPermission();
+  if (p !== 'granted') { toast('Permiso de notificaciones denegado'); return; }
+  const cur = alertThr(); const nxt = {4.5: 5, 5: 6, 6: 4.5}[cur] || 5;
+  if (localStorage.getItem('sp_alert') === '1') localStorage.setItem('sp_thr', nxt); else localStorage.setItem('sp_thr', cur);
+  localStorage.setItem('sp_alert', '1');
+  updAlertLbl();
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    reg.active && reg.active.postMessage({type: 'thr', thr: alertThr()});
+    if ('periodicSync' in reg) { await reg.periodicSync.register('sismos', {minInterval: 15 * 60 * 1000}); }
+  } catch (e) {}
+  toast('Alertas activas para M≥' + alertThr() + '. Toca de nuevo para cambiar el umbral.', 5000);
+}
+function updAlertLbl() { $('alertLbl').textContent = localStorage.getItem('sp_alert') === '1' && 'Notification' in window && Notification.permission === 'granted' ? 'Alertas M≥' + alertThr() : 'Activar alertas'; }
+
+/* ---------- Tutorial ---------- */
+const TOUR = [
+  ['kpis', 'Resumen: sismo principal, cuántas réplicas M≥4.5 van, la mayor, la tasa actual comparada con las primeras horas, la probabilidad de una réplica M≥6 en 24 h y la intensidad estimada en la capital.'],
+  ['cardMap', 'Mapa: cada círculo es un sismo (tamaño y color por magnitud, borde grueso = última hora). La capa "Intensidad estimada" pinta cuánto se sintió cada zona. El círculo punteado marca el área de la secuencia. Toca un sismo para ver detalles.'],
+  ['segLayer', 'Cambia entre intensidad de todos los sismos, solo el principal, o densidad de epicentros. En el selector de capas del mapa aparecerán el ShakeMap oficial y los reportes ciudadanos de USGS cuando estén publicados.'],
+  ['tabs', 'Réplicas: cómo decaen frente a la ley de Omori. Qué esperar: probabilidades para las próximas horas y días. Antes del sismo: actividad previa. Ciudades: intensidad estimada. Cómo se calcula: las fórmulas.'],
+  ['cardTable', 'Tabla de eventos: filtra, ordena cada columna tocando su encabezado y descarga a Excel la vista o el catálogo completo.'],
+  ['btnAlert', 'Activa notificaciones en este dispositivo. Toca de nuevo para cambiar el umbral (M≥4.5, 5 o 6). Instala la app desde el menú del navegador ("Agregar a pantalla de inicio").']
+];
+function tour(i) {
+  document.querySelectorAll('.tour-hl').forEach(x => x.classList.remove('tour-hl')); const old = $('tourbox'); if (old) old.remove();
+  if (i < 0 || i >= TOUR.length) return;
+  const [id, txt] = TOUR[i]; const el = $(id); el.classList.add('tour-hl'); el.scrollIntoView({block: 'center', behavior: 'smooth'});
+  const b = document.createElement('div'); b.className = 'tourbox'; b.id = 'tourbox';
+  b.innerHTML = '<div class="note">Paso ' + (i + 1) + ' de ' + TOUR.length + '</div><div>' + txt + '</div><div class="nav"><button class="btn" id="tPrev"' + (i ? '' : ' disabled') + '>Anterior</button><button class="btn" id="tClose">Cerrar</button><button class="btn" id="tNext">' + (i === TOUR.length - 1 ? 'Terminar' : 'Siguiente') + '</button></div>';
+  document.body.appendChild(b);
+  setTimeout(() => { const r = el.getBoundingClientRect(); const top = r.bottom + 10 + 180 < innerHeight ? r.bottom + 10 : Math.max(10, r.top - 190); b.style.top = Math.max(10, Math.min(innerHeight - 200, top)) + 'px'; b.style.left = Math.max(10, Math.min(innerWidth - 350, r.left)) + 'px'; }, 350);
+  $('tPrev').onclick = () => tour(i - 1); $('tNext').onclick = () => tour(i + 1); $('tClose').onclick = () => tour(-1);
+}
+
+/* ---------- Tema ---------- */
+const MOON = '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>', SUN = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
+function isDark() { const t = document.documentElement.dataset.theme; return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; }
+function applyThemeIcon() { $('icoTheme').innerHTML = isDark() ? SUN : MOON; }
+function toggleTheme() { const d = !isDark(); document.documentElement.dataset.theme = d ? 'dark' : 'light'; try { localStorage.setItem('sp_theme', d ? 'dark' : 'light'); } catch (e) {} applyThemeIcon(); renderSeq(); renderFC(); renderPre(); }
+
+/* ---------- Eventos UI ---------- */
+function bind() {
+  $('segLayer').addEventListener('click', ev => { const b = ev.target.closest('button'); if (!b) return; S.layer = b.dataset.l; document.querySelectorAll('#segLayer button').forEach(x => x.classList.toggle('on', x === b)); drawMap(); });
+  $('selDays').addEventListener('change', () => { S.days = +$('selDays').value; S.main = null; S.first = true; load(true); });
+  $('tabs').addEventListener('click', ev => { const b = ev.target.closest('button'); if (!b) return; document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b)); document.querySelectorAll('.tabp').forEach(p => p.classList.toggle('on', p.id === 't-' + b.dataset.t)); Object.values(S.charts).forEach(c => c.resize()); });
+  $('evTable').addEventListener('click', ev => {
+    const th = ev.target.closest('th'); if (th) { const k = th.dataset.k; if (S.sortKey === k) S.sortDir *= -1; else { S.sortKey = k; S.sortDir = (k === 'place' || k === 'magType' || k === 'status') ? 1 : -1; } renderTable(); return; }
+    const tr = ev.target.closest('tr[data-id]'); if (tr && !ev.target.closest('a')) { const e = S.events.find(x => x.id === tr.dataset.id); if (e) { map.setView([e.lat, e.lon], 9); L.popup().setLatLng([e.lat, e.lon]).setContent(popupHtml(e)).openOn(map); $('cardMap').scrollIntoView({behavior: 'smooth'}); } }
+  });
+  ['fText', 'fMag', 'fScope'].forEach(id => $(id).addEventListener('input', renderTable));
+  $('btnClear').onclick = () => { $('fText').value = ''; $('fMag').value = '0'; $('fScope').value = 'all'; S.sortKey = 't'; S.sortDir = -1; renderTable(); map.setView([8.2, -80.4], 7); };
+  $('btnXlsF').onclick = () => exportXlsx(false); $('btnXlsA').onclick = () => exportXlsx(true);
+  $('btnRefresh').onclick = () => { toast('Actualizando…', 1200); load(true); };
+  $('btnTheme').onclick = toggleTheme; $('btnTour').onclick = () => tour(0); $('btnAlert').onclick = setupAlerts;
+}
+let countdown = CFG.refreshSec;
+function tick() { countdown--; if (countdown <= 0) { countdown = CFG.refreshSec; if (!document.hidden) load(false); } $('nextRef').textContent = 'próxima actualización en ' + countdown + ' s'; }
+
+/* ---------- Inicio ---------- */
+(function init() {
+  try { const t = localStorage.getItem('sp_theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  applyThemeIcon(); bind(); initMap(); updAlertLbl(); load(false); setInterval(tick, 1000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { countdown = CFG.refreshSec; load(false); } });
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').then(r => { if (localStorage.getItem('sp_alert') === '1' && r.active) r.active.postMessage({type: 'thr', thr: alertThr()}); }).catch(() => {});
+})();
+</script>
+</body>
+</html>
