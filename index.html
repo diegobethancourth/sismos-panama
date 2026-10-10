@@ -12,12 +12,12 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f2f4f7;--card:#fff;--ink:#14202e;--mut:#5a6878;--line:#e1e6ec;--head:#1d232b;--acc:#1f5fae;
---g:#dcf5e6;--gi:#145c36;--y:#fff0c2;--yi:#6e4c00;--o:#ffe0cc;--oi:#8a3a00;--r:#fde0df;--ri:#8a1c1c;--b:#dbe9fb;--bi:#123f75;--p:#ece3fb;--pi:#4b2a86;--chip:#eef2f6;--navh:64px}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0f151d;--card:#18212c;--ink:#e7ecf2;--mut:#9aa7b6;--line:#2a3644;--head:#12171d;--acc:#6aa5f0;
---g:#1c3d2b;--gi:#b6efcd;--y:#45391a;--yi:#ffe39b;--o:#4a2e1c;--oi:#ffc9a3;--r:#4a2526;--ri:#ffc9c6;--b:#1d3352;--bi:#bcd7fb;--p:#33284c;--pi:#dccdfb;--chip:#223040}}
-:root[data-theme=dark]{--bg:#0f151d;--card:#18212c;--ink:#e7ecf2;--mut:#9aa7b6;--line:#2a3644;--head:#12171d;--acc:#6aa5f0;
---g:#1c3d2b;--gi:#b6efcd;--y:#45391a;--yi:#ffe39b;--o:#4a2e1c;--oi:#ffc9a3;--r:#4a2526;--ri:#ffc9c6;--b:#1d3352;--bi:#bcd7fb;--p:#33284c;--pi:#dccdfb;--chip:#223040}
+:root{--bg:#f3f4f6;--card:#fff;--ink:#1b2129;--mut:#5e6670;--line:#e3e6ea;--head:#1d232b;--acc:#3e4b5a;
+--g:#dcf5e6;--gi:#145c36;--y:#fff0c2;--yi:#6e4c00;--o:#ffe0cc;--oi:#8a3a00;--r:#fde0df;--ri:#8a1c1c;--b:#e7eaee;--bi:#2c3640;--p:#ece6f6;--pi:#4b3a73;--chip:#eef0f3;--navh:64px}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#111418;--card:#1b2026;--ink:#e8ebef;--mut:#a0a8b2;--line:#2c333b;--head:#12171d;--acc:#b4c0cd;
+--g:#1c3d2b;--gi:#b6efcd;--y:#45391a;--yi:#ffe39b;--o:#4a2e1c;--oi:#ffc9a3;--r:#4a2526;--ri:#ffc9c6;--b:#2a3139;--bi:#d5dbe2;--p:#332c42;--pi:#dcd2ef;--chip:#252b32}}
+:root[data-theme=dark]{--bg:#111418;--card:#1b2026;--ink:#e8ebef;--mut:#a0a8b2;--line:#2c333b;--head:#12171d;--acc:#b4c0cd;
+--g:#1c3d2b;--gi:#b6efcd;--y:#45391a;--yi:#ffe39b;--o:#4a2e1c;--oi:#ffc9a3;--r:#4a2526;--ri:#ffc9c6;--b:#2a3139;--bi:#d5dbe2;--p:#332c42;--pi:#dcd2ef;--chip:#252b32}
 *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 Inter,system-ui,sans-serif}
 button,select,input{font:inherit;color:inherit}
 svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
@@ -298,7 +298,7 @@ footer a{color:var(--acc)}
    Sismos Panamá — v1.2.0
    ===================================================================== */
 const CFG = {
-  version: '1.5.0', published: '2026-10-10T07:50:00Z',
+  version: '1.5.1', published: '2026-10-10T07:55:00Z',
   bbox: {minlatitude: 5, maxlatitude: 11, minlongitude: -84.5, maxlongitude: -76},
   fdsn: 'https://earthquake.usgs.gov/fdsnws/event/1/query',
   feedDay: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson',
