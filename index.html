@@ -294,7 +294,7 @@ footer a{color:var(--acc)}
    Sismos Panamá — v1.2.0
    ===================================================================== */
 const CFG = {
-  version: '1.4.0', published: '2026-10-10T07:25:00Z',
+  version: '1.4.1', published: '2026-10-10T07:30:00Z',
   bbox: {minlatitude: 5, maxlatitude: 11, minlongitude: -84.5, maxlongitude: -76},
   fdsn: 'https://earthquake.usgs.gov/fdsnws/event/1/query',
   feedDay: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson',
@@ -391,7 +391,7 @@ async function load(manual) {
   const start = new Date(Date.now() - S.days * 864e5).toISOString().slice(0, 19);
   const [ru, re, ri] = await Promise.allSettled([fetchJSON(fdsnURL(Object.assign({starttime: start, minmagnitude: 2.5}, CFG.bbox))), fetchJSON(emscURL(start)),
     CFG.pushApi ? fetchJSON(CFG.pushApi + '/igc', 15000) : Promise.reject(new Error('sin servicio'))]);
-  if (ri.status === 'fulfilled') { const t0 = Date.now() - S.days * 864e5; S.raw.igc = parseIgc(ri.value).filter(e => e.t >= t0 && inBox(e)); S.src.igc = {ok: !!ri.value.at, at: ri.value.at || 0, n: S.raw.igc.length}; }
+  if (ri.status === 'fulfilled') { const t0 = Date.now() - S.days * 864e5; S.raw.igc = parseIgc(ri.value).filter(e => e.t >= t0 && inBox(e)); S.src.igc = {ok: !!ri.value.at, at: ri.value.checked || ri.value.at || 0, changed: ri.value.at || 0, n: S.raw.igc.length}; }
   else S.src.igc = Object.assign({}, S.src.igc, {ok: false});
   if (ru.status === 'fulfilled') { S.raw.usgs = parse(ru.value); S.src.usgs = {ok: true, at: Date.now(), mode: 'API'}; }
   else { try { const fc = await fetchJSON(CFG.feedDay); S.raw.usgs = parse(fc).filter(inBox); S.src.usgs = {ok: true, at: Date.now(), mode: 'feed 24 h'}; } catch (e) { S.src.usgs = Object.assign({}, S.src.usgs, {ok: false}); } }
@@ -466,7 +466,7 @@ function sourcesSheet() {
   const U = S.src.usgs, E = S.src.emsc, lastOf = f => S.events.filter(f).reduce((a, e) => Math.max(a, e.t), 0);
   const row = (n, s, extra, l) => '<div class="feel"><span class="dot' + (s.ok ? '' : ' ko') + '" style="margin-top:8px"></span><div><b>' + n + '</b> · ' + (s.at ? 'consultado ' + hora(s.at) : 'sin respuesta') + (extra ? ' · ' + extra : '') + (l ? '<br><span class="mut">Último sismo que reporta: ' + hora(l) + ' (' + ago(l) + ')</span>' : '') + '</div></div>';
   const I = S.src.igc;
-  sheet('<div class="big" style="margin-bottom:6px;padding-right:70px">Fuentes de datos</div>' + row('IGC · Universidad de Panamá (red nacional)', CFG.pushApi ? I : {ok: false}, CFG.pushApi ? (I.at ? 'listado de ' + hora(I.at) + ' · ' + I.n + ' sismos' : 'esperando la primera lectura') : 'se activa con el servicio de alertas', lastOf(e => /IGC/.test(e.src))) +
+  sheet('<div class="big" style="margin-bottom:6px;padding-right:70px">Fuentes de datos</div>' + row('IGC · Universidad de Panamá (red nacional)', CFG.pushApi ? I : {ok: false}, CFG.pushApi ? (I.at ? 'leído ' + hora(I.at) + ' · ' + I.n + ' sismos recientes' : 'esperando la primera lectura') : 'se activa con el servicio de alertas', lastOf(e => /IGC/.test(e.src))) +
     row('USGS', U, U.mode && U.mode !== 'API' ? U.mode : '', lastOf(e => e.hasUsgs)) + row('EMSC', E, E.ws ? 'en vivo' : '', lastOf(e => /EMSC/.test(e.src))) +
     '<div class="note" style="margin-top:8px">Se actualiza solo cada minuto; EMSC además avisa al instante. App versión ' + CFG.version + ' (' + fmtT(Date.parse(CFG.published)) + ').</div>');
 }

@@ -40,11 +40,11 @@ export default {
       if (url.pathname === '/igc') {
         // la app lee aquí el listado del IGC (su página no permite lectura directa desde otro sitio); se refresca cada minuto con el cron
         const st = await state(env);
-        return json({at: st.igcAt || null, events: st.igc || []}, Object.assign({'cache-control': 'public, max-age=30'}, cors));
+        return json({at: st.igcAt || null, checked: st.igcChecked || null, events: st.igc || []}, Object.assign({'cache-control': 'public, max-age=30'}, cors));
       }
       if (url.pathname === '/status') {
         const st = await state(env);
-        return json({lastRun: st.lastRun || null, lastOk: st.lastOk || null, sources: st.sources || '', lastAlert: (st.alerts || [])[0] || null, pending: !!st.pending}, cors);
+        return json({lastSaved: st.beat || null, igcChanged: st.igcAt || null, sources: st.sources || '', lastAlert: (st.alerts || [])[0] || null, pending: !!st.pending, live: LIVE}, Object.assign({'cache-control': 'no-store'}, cors));
       }
       if (url.pathname === '/subscribe' && req.method === 'POST') {
         const b = await req.json();
@@ -67,7 +67,9 @@ export default {
 };
 
 /* ================= ciclo de cada minuto ================= */
+const LIVE = {};   // diagnóstico en memoria, sin gastar escrituras de KV
 async function run(env) {
+  LIVE.start = Date.now();
   const st = await state(env);
   let dirty = false;
   const budget = +(env.PUSH_BUDGET || 45);
@@ -99,6 +101,7 @@ async function run(env) {
   }
   // estado: se guarda solo si cambió algo, o como latido cada ~30 min
   if (dirty || st.igcChanged || !st.beat || Date.now() - st.beat > 30 * 60e3) { delete st.igcChanged; st.beat = Date.now(); await save(env, st); }
+  LIVE.end = Date.now(); LIVE.sources = st.sources; LIVE.igcTop = st.igc && st.igc[0] ? st.igc[0].id : null;
 }
 
 async function fetchEvents(st) {
@@ -124,9 +127,10 @@ async function fetchEvents(st) {
   if (ri.status === 'fulfilled' && ri.value.ok) {
     try {
       igc = parseIGC(await ri.value.text()); src.push('IGC ok');
-      // el listado completo (7 días) se guarda solo si cambió, para respetar el límite de escrituras de KV
-      const sig = igc.slice(0, 40).map(e => e.id + e.mag + e.status).join('|');
+      // el listado se guarda solo si cambió, para respetar el límite de escrituras de KV
+      const sig = igc.map(e => e.id + e.mag + e.status).join('|');
       if (sig !== st.igcSig) { st.igc = igc; st.igcSig = sig; st.igcAt = Date.now(); st.igcChanged = true; }
+      st.igcChecked = Date.now();
     } catch (e) { src.push('IGC sin formato'); }
   } else src.push('IGC error');
   st.sources = src.join(' · ');
@@ -198,9 +202,11 @@ function same(a, b) {
   return dt <= (igcA || igcB ? 30000 : 20000) && dm <= 1 && d <= 60;
 }
 /* listado del IGC: cada fila trae un enlace "Ver" con todos los datos en la URL (ultimosismo.html?lt=..&ln=..&p=..&e=..&h=..&f=..&m=..&r=..) */
+// Solo los IGC_MAX más recientes (la página viene ordenada de más nuevo a más viejo): leer los ~250 enlaces de 7 días se pasa del límite de CPU del plan gratuito
+const IGC_MAX = 40;
 function parseIGC(html) {
   const out = [], seenQ = new Set(), re = /ultimosismo\.html\?([^"'<>\s]+)/g; let m;
-  while ((m = re.exec(html))) {
+  while (out.length < IGC_MAX && (m = re.exec(html))) {
     const qs = m[1].replace(/&amp;/g, '&'); if (seenQ.has(qs)) continue; seenQ.add(qs);
     const q = new URLSearchParams(qs), lat = +q.get('lt'), lon = +q.get('ln'), mag = +q.get('m'), t = igcTime(q.get('f'), q.get('h'));
     if (!isFinite(lat) || !isFinite(lon) || !isFinite(mag) || !isFinite(t)) continue;
