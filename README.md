@@ -33,4 +33,4 @@ GitHub Pages desde `main` (raíz). Archivos: `index.html`, `manifest.json`, `sw.
 - El IGC (Universidad de Panamá) no publica un servicio de datos consultable; se integrará si lo habilita.
 
 ## Alertas
-Mientras la app está abierta revisa USGS cada 60 s y notifica eventos sobre el umbral elegido (M≥4.5 / 5 / 6). Con la app instalada en Chrome Android se registra además una revisión periódica en segundo plano (el sistema decide la frecuencia, mínimo ~15 min). Para avisos con la app cerrada usa `alertas/` (Apps Script → correo + push ntfy cada minuto); ver `alertas/LEEME.md`.
+Mientras la app está abierta revisa USGS cada 60 s y notifica eventos sobre el umbral elegido (M≥4.5 / 5 / 6). Con la app instalada en Chrome Android se registra además una revisión periódica en segundo plano (el sistema decide la frecuencia, mínimo ~15 min). Para avisos con la app cerrada usa `alertas/` (Apps Script → push ntfy cada minuto, sin correo); ver `alertas/LEEME.md`.

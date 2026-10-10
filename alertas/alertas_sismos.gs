@@ -1,31 +1,27 @@
 /**
- * ALERTAS SÍSMICAS PANAMÁ — correo + notificación push (ntfy)
+ * ALERTAS SÍSMICAS PANAMÁ — notificación push (ntfy), sin correo
  * ------------------------------------------------------------------
  * Revisa USGS y EMSC cada minuto. Si hay un sismo nuevo en la región de Panamá
- * sobre el umbral, envía:
- *   1) Notificación push al teléfono vía ntfy (app gratuita Android/iOS).
- *   2) Correo HTML desde tu propia cuenta de Gmail.
+ * sobre el umbral, envía una notificación push al teléfono vía ntfy
+ * (app gratuita Android/iOS). No usa Gmail: no consume cuota de correo.
  *
  * Proyecto independiente: créalo en la cuenta personal (no en los proyectos CSS),
  * así no comparte triggers ni cuotas con el ecosistema DINALOG.
  *
  * Instalación: ver alertas/LEEME.md. Funciones públicas para ejecutar a mano:
  *   instalar()        crea el trigger de 1 minuto y envía una prueba
- *   probarAlerta()    envía una alerta de prueba (correo + push)
+ *   probarAlerta()    envía una notificación de prueba
  *   estado()          muestra en el registro la última corrida y lo enviado
  *   desinstalar()     elimina el trigger
  */
 
 var CFG_SISMOS = {
-  EMAILS: 'diego.bethancourth@gmail.com',      // separa varios destinatarios con coma
-  EMAIL_MIN_MAG: 5.0,                          // correo desde esta magnitud
-  PUSH_MIN_MAG: 4.5,                           // push desde esta magnitud
+  PUSH_MIN_MAG: 4.5,                           // notificar desde esta magnitud
+  URGENTE_MIN_MAG: 6.0,                        // desde aquí prioridad máxima (suena aunque el teléfono esté en silencio, si lo permites en ntfy)
   NTFY_SERVER: 'https://ntfy.sh',
   BOX: {la0: 5, la1: 11, lo0: -84.5, lo1: -76},
   APP_URL: 'https://diegobethancourth.github.io/sismos-panama/',
-  VENTANA_MIN: 30,                             // minutos hacia atrás que se consultan en cada corrida
-  CIUDADES: [['Ciudad de Panamá', 8.983, -79.519], ['Colón', 9.359, -79.901], ['Santiago', 8.100, -80.983],
-             ['Chitré', 7.961, -80.430], ['Las Tablas', 7.764, -80.274], ['David', 8.427, -82.431]]
+  VENTANA_MIN: 30                              // minutos hacia atrás que se consultan en cada corrida
 };
 
 /* ============ funciones públicas ============ */
@@ -51,8 +47,7 @@ function probarAlerta() {
   var e = {src: 'PRUEBA', id: 'prueba-' + Date.now(), t: Date.now(), mag: 5.5, magType: 'mb', lat: 7.59, lon: -80.77, depth: 10,
            place: 'Prueba del sistema de alertas (no es un sismo real)', url: CFG_SISMOS.APP_URL};
   enviarPush([e], true);
-  enviarCorreo([e], true);
-  Logger.log('Prueba enviada a ' + CFG_SISMOS.EMAILS + ' y al tema ntfy ' + topicNtfy());
+  Logger.log('Prueba enviada al tema ntfy ' + topicNtfy());
 }
 
 function estado() {
@@ -84,10 +79,8 @@ function revisarSismos() {
     guardarVistos(vistos);
 
     var push = nuevos.filter(function (e) { return e.mag >= CFG_SISMOS.PUSH_MIN_MAG; });
-    var mail = nuevos.filter(function (e) { return e.mag >= CFG_SISMOS.EMAIL_MIN_MAG; });
-    if (push.length) enviarPush(push, false);
-    if (mail.length) enviarCorreo(mail, false);
-    if (push.length || mail.length) {
+    if (push.length) {
+      enviarPush(push, false);
       props.setProperty('SP_LAST_SENT', ahoraPty() + ' · ' + nuevos.map(function (e) { return 'M' + e.mag.toFixed(1) + ' ' + e.src; }).join(', '));
     }
   } finally {
@@ -149,43 +142,12 @@ function enviarPush(evs, prueba) {
     topic: topicNtfy(),
     title: (prueba ? 'PRUEBA · ' : '') + (e.revisado ? 'Revisado: ' : '') + 'Sismo M' + e.mag.toFixed(1),
     message: cuerpo,
-    priority: e.mag >= 6 ? 5 : e.mag >= 5 ? 4 : 3,
+    priority: e.mag >= CFG_SISMOS.URGENTE_MIN_MAG ? 5 : e.mag >= 5 ? 4 : 3,
     click: CFG_SISMOS.APP_URL
   };
   try {
     UrlFetchApp.fetch(CFG_SISMOS.NTFY_SERVER + '/', {method: 'post', contentType: 'application/json', payload: JSON.stringify(payload), muteHttpExceptions: true});
   } catch (err) { Logger.log('ntfy: ' + err); }
-}
-
-function enviarCorreo(evs, prueba) {
-  var e = mayor(evs);
-  var asunto = (prueba ? '[PRUEBA] ' : '') + (e.revisado ? 'Revisado: ' : '') + 'Sismo M' + e.mag.toFixed(1) + ' · ' + lugarEs(e.place) + ' · ' + horaPty(e.t) + ' (Panamá)';
-  var col = e.mag >= 6 ? ['#fde2e1', '#8a1c1c'] : e.mag >= 5 ? ['#fff1cc', '#7a5300'] : ['#dbe9fb', '#123f75'];
-  var filasCiudad = CFG_SISMOS.CIUDADES.map(function (c) {
-    var v = mmiAt(e, c[1], c[2]);
-    return '<tr><td style="padding:5px 8px;border-bottom:1px solid #e3e8ee">' + c[0] + '</td><td style="padding:5px 8px;border-bottom:1px solid #e3e8ee;text-align:right">' +
-      Math.round(distKm(e.lat, e.lon, c[1], c[2])) + ' km</td><td style="padding:5px 8px;border-bottom:1px solid #e3e8ee"><span style="background:' + mmiHex(v) +
-      ';padding:1px 8px;border-radius:5px;font-weight:600">' + romano(v) + '</span> ' + mmiTxt(v) + '</td></tr>';
-  }).join('');
-  var otros = evs.length > 1 ? '<p style="margin:14px 0 4px;font-weight:600">Otros eventos en este aviso</p><ul style="margin:0;padding-left:18px">' +
-    evs.filter(function (x) { return x !== e; }).map(function (x) { return '<li>M' + x.mag.toFixed(1) + ' · ' + lugarEs(x.place) + ' · ' + horaPty(x.t) + ' · ' + x.src + '</li>'; }).join('') + '</ul>' : '';
-  var html =
-    '<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;margin:auto;color:#16202c">' +
-    '<div style="background:#0b2f5b;color:#fff;padding:14px 18px;border-radius:10px 10px 0 0">' +
-    '<div style="font-size:17px;font-weight:700">Monitor Sísmico Panamá</div><div style="font-size:12px;opacity:.85">Aviso automático · fuentes USGS y EMSC</div></div>' +
-    '<div style="border:1px solid #dde3ea;border-top:0;border-radius:0 0 10px 10px;padding:16px 18px">' +
-    '<div style="background:' + col[0] + ';color:' + col[1] + ';border-radius:10px;padding:12px 14px">' +
-    '<div style="font-size:30px;font-weight:700">M ' + e.mag.toFixed(1) + ' <span style="font-size:14px;font-weight:600">' + e.magType + '</span></div>' +
-    '<div style="font-size:15px;font-weight:600">' + lugarEs(e.place) + '</div>' +
-    '<div style="font-size:13px">' + fechaPty(e.t) + ' (hora de Panamá) · profundidad ' + Math.round(e.depth) + ' km · fuente ' + e.src +
-    (e.emscMag ? ' (EMSC M' + e.emscMag.toFixed(1) + ')' : '') + (e.revisado ? ' · magnitud revisada desde M' + e.revisado.toFixed(1) : '') + '</div></div>' +
-    '<p style="margin:14px 0 4px;font-weight:600">Intensidad estimada (Atkinson y Wald 2007)</p>' +
-    '<table style="border-collapse:collapse;width:100%;font-size:13px">' + filasCiudad + '</table>' + otros +
-    '<p style="margin:16px 0"><a href="' + CFG_SISMOS.APP_URL + '" style="background:#0b2f5b;color:#fff;text-decoration:none;padding:9px 14px;border-radius:8px;font-weight:600">Abrir el monitor</a>' +
-    ' &nbsp; <a href="' + e.url + '" style="color:#1f5fae">Ver en ' + (e.src === 'EMSC' ? 'EMSC' : 'USGS') + '</a></p>' +
-    '<p style="font-size:11px;color:#5b6878">Aviso informativo, no es un sistema oficial de alerta. Sigue las indicaciones de SINAPROC y del Instituto de Geociencias. ' +
-    'La intensidad es una estimación que no considera el suelo local. Generado ' + ahoraPty() + ' (hora de Panamá).</p></div></div>';
-  MailApp.sendEmail({to: CFG_SISMOS.EMAILS, subject: asunto, htmlBody: html, name: 'Monitor Sísmico Panamá'});
 }
 
 /* ============ utilidades ============ */
@@ -226,13 +188,10 @@ function mmiAt(e, la, lo) {
   return Math.max(1, Math.min(10, v));
 }
 function romano(v) { return ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][Math.round(v)]; }
-function mmiTxt(v) { return ['', 'No sentido', 'Débil', 'Débil', 'Leve', 'Moderado', 'Fuerte', 'Muy fuerte', 'Severo', 'Violento', 'Extremo'][Math.round(v)]; }
-function mmiHex(v) { return ['#ffffff', '#ffffff', '#bfccff', '#a0e6ff', '#80ffff', '#7aff93', '#ffff00', '#ffc800', '#ff9100', '#ff0000', '#c80000'][Math.round(v)]; }
 function lugarEs(s) {
   return String(s || '').replace(/(\d+) km (N|S|E|W|NE|NW|SE|SW|NNE|NNW|SSE|SSW|ENE|ESE|WNW|WSW) of /, function (m, k, d) {
     return k + ' km al ' + d.replace(/W/g, 'O') + ' de ';
   }).replace(', Panama', ', Panamá');
 }
 function horaPty(t) { return Utilities.formatDate(new Date(t), 'America/Panama', 'HH:mm'); }
-function fechaPty(t) { return Utilities.formatDate(new Date(t), 'America/Panama', 'dd/MM/yyyy HH:mm:ss'); }
 function ahoraPty() { return Utilities.formatDate(new Date(), 'America/Panama', 'dd/MM/yyyy HH:mm:ss'); }
